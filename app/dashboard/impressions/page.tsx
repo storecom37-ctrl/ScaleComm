@@ -8,10 +8,10 @@ import { useSession } from 'next-auth/react'
 export default function ImpressionsPage() {
   const { data: session } = useSession()
 
-  // For demo purposes, using placeholder IDs
-  // In a real implementation, these would come from the user's selected account/location
-  const accountId = 'demo-account-id'
-  const locationId = 'demo-location-id'
+  // Get account and location IDs from session or props
+  // These should be passed as props or retrieved from context
+  const accountId = session?.user?.selectedAccountId || ''
+  const locationId = session?.user?.selectedLocationId || ''
 
   return (
     <div className="container mx-auto p-6 space-y-6">
