@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        { $sort: { totalViews: -1 } },
+        { $sort: { totalViews: -1 as const } },
         { $skip: skip },
         { $limit: limit }
       ])

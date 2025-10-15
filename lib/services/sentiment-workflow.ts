@@ -82,7 +82,7 @@ export class SentimentWorkflowService {
     const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000))
 
     // If we already have analytics and it's fresh compared to latest review, skip
-    const existing = await SentimentAnalytics.findOne({ entityId, entityType }).lean()
+    const existing = await SentimentAnalytics.findOne({ entityId, entityType }).lean() as any
 
     // Find latest review in window
     const latestReview = await Review.findOne({
@@ -90,7 +90,7 @@ export class SentimentWorkflowService {
       status: 'active',
       comment: { $exists: true, $nin: [null, ''] },
       gmbCreateTime: { $gte: startDate, $lte: endDate }
-    }).sort({ gmbCreateTime: -1 }).select({ gmbCreateTime: 1 }).lean()
+    }).sort({ gmbCreateTime: -1 }).select({ gmbCreateTime: 1 }).lean() as any
 
     if (existing && latestReview && existing.lastAnalyzed && existing.lastReviewDate) {
       // If no newer reviews since last analyzed, no need to re-run

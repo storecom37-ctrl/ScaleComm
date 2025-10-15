@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
           total: { $sum: 1 }
         }
       },
-      { $sort: { '_id.y': 1, '_id.m': 1 } }
+      { $sort: { '_id.y': 1 as const, '_id.m': 1 as const } }
     ]
 
     const raw = await Review.aggregate(pipeline)

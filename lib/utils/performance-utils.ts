@@ -70,6 +70,8 @@ export class PerformanceDataProcessor {
     let businessFoodOrders = 0
     let businessMessages = 0
     let desktopSearchImpressions = 0
+    let mobileSearchImpressions = 0
+    let desktopMapsImpressions = 0
     let mobileMapsImpressions = 0
     
     // If we have daily metrics, aggregate them properly
@@ -289,6 +291,8 @@ export class PerformanceDataProcessor {
       businessFoodOrders: acc.businessFoodOrders + data.businessFoodOrders,
       businessMessages: acc.businessMessages + data.businessMessages,
       desktopSearchImpressions: acc.desktopSearchImpressions + data.desktopSearchImpressions,
+      mobileSearchImpressions: acc.mobileSearchImpressions + data.mobileSearchImpressions,
+      desktopMapsImpressions: acc.desktopMapsImpressions + data.desktopMapsImpressions,
       mobileMapsImpressions: acc.mobileMapsImpressions + data.mobileMapsImpressions,
       conversionRate: 0, // Will be calculated below
       clickThroughRate: 0 // Will be calculated below
@@ -296,7 +300,7 @@ export class PerformanceDataProcessor {
       queries: 0, views: 0, actions: 0, photoViews: 0,
       callClicks: 0, websiteClicks: 0,
       businessBookings: 0, businessFoodOrders: 0, businessMessages: 0,
-      desktopSearchImpressions: 0, mobileMapsImpressions: 0,
+      desktopSearchImpressions: 0, mobileSearchImpressions: 0, desktopMapsImpressions: 0, mobileMapsImpressions: 0,
       conversionRate: 0, clickThroughRate: 0
     })
     

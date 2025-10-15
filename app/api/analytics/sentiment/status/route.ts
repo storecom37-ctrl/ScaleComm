@@ -30,6 +30,13 @@ export async function GET(request: NextRequest) {
     const entityId = brandId || storeId
     const entityType = brandId ? 'brand' : 'store'
     
+    if (!entityId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid entity ID'
+      }, { status: 400 })
+    }
+    
     const status = await sentimentWorkflow.getAnalysisStatus(entityId, entityType, days)
     
     return NextResponse.json({

@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     const daysDistribution = await Performance.aggregate([
       { $match: { status: 'active' } },
       { $group: { _id: '$period.dateRange.days', count: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
+      { $sort: { _id: 1 as const } }
     ])
     console.log('🔍 Store-wise Performance API - Days distribution:', daysDistribution)
     
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
           },
         }
       },
-      { $sort: { totalViews: -1 } },
+      { $sort: { totalViews: -1 as const } },
       { $limit: limit }
     ])
     
