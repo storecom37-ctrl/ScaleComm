@@ -75,11 +75,7 @@ async function syncGmbData(tokens: any, controller: ReadableStreamDefaultControl
       }
     }
   }
-
-<<<<<<< HEAD
-=======
   
->>>>>>> 184352ebe2e05bdc34d61130fa9e1dfb6d829dd7
   // Helper function to safely close controller
   const safeClose = () => {
     if (!isControllerClosed && controller.desiredSize !== null) {
