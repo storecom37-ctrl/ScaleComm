@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
     
     pipeline.push({ 
       $sort: { 
-        [sortField]: sortOrder === 'asc' ? 1 : -1 
+        [sortField]: sortOrder === 'asc' ? 1 as const : -1 as const 
       } 
     })
     
