@@ -10,8 +10,8 @@ export default function ImpressionsPage() {
 
   // Get account and location IDs from session or props
   // These should be passed as props or retrieved from context
-  const accountId = session?.user?.selectedAccountId || ''
-  const locationId = session?.user?.selectedLocationId || ''
+  const accountId = session?.user?.brandId || ''
+  const locationId = '' // This should be passed as a prop or retrieved from context
 
   return (
     <div className="container mx-auto p-6 space-y-6">
