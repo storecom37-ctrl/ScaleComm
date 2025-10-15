@@ -234,6 +234,7 @@ export class SentimentWorkflowService {
             global.gc()
           }
           
+          
           // Add small delay between batches to prevent memory overload
           if (batchNumber % 5 === 0) {
             console.log(`⏸️ Pausing briefly to prevent memory overload...`)
