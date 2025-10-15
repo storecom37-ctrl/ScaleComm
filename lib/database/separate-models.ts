@@ -325,6 +325,14 @@ const PerformanceSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  mobileSearchImpressions: {
+    type: Number,
+    default: 0
+  },
+  desktopMapsImpressions: {
+    type: Number,
+    default: 0
+  },
   mobileMapsImpressions: {
     type: Number,
     default: 0

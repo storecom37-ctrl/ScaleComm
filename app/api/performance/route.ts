@@ -211,17 +211,57 @@ export async function GET(request: NextRequest) {
         { $limit: limit }
       ])
 
-      // Calculate overall aggregated metrics for store grouping
+      // Calculate overall aggregated metrics for store grouping with data sanitization
       const overallAggregation = await Performance.aggregate([
         { $match: query },
         {
+          $addFields: {
+            // Sanitize numeric fields to prevent astronomical values
+            sanitizedViews: {
+              $cond: {
+                if: { $and: [{ $gte: ['$views', 0] }, { $lte: ['$views', 1000000] }] },
+                then: '$views',
+                else: 0
+              }
+            },
+            sanitizedActions: {
+              $cond: {
+                if: { $and: [{ $gte: ['$actions', 0] }, { $lte: ['$actions', 1000000] }] },
+                then: '$actions',
+                else: 0
+              }
+            },
+            sanitizedCallClicks: {
+              $cond: {
+                if: { $and: [{ $gte: ['$callClicks', 0] }, { $lte: ['$callClicks', 1000000] }] },
+                then: '$callClicks',
+                else: 0
+              }
+            },
+            sanitizedWebsiteClicks: {
+              $cond: {
+                if: { $and: [{ $gte: ['$websiteClicks', 0] }, { $lte: ['$websiteClicks', 1000000] }] },
+                then: '$websiteClicks',
+                else: 0
+              }
+            },
+            sanitizedDirectionRequests: {
+              $cond: {
+                if: { $and: [{ $gte: ['$directionRequests', 0] }, { $lte: ['$directionRequests', 1000000] }] },
+                then: '$directionRequests',
+                else: 0
+              }
+            }
+          }
+        },
+        {
           $group: {
             _id: null,
-            totalViews: { $sum: '$views' },
-            totalActions: { $sum: '$actions' },
-            totalCallClicks: { $sum: '$callClicks' },
-            totalWebsiteClicks: { $sum: '$websiteClicks' },
-            totalDirectionRequests: { $sum: '$directionRequests' },
+            totalViews: { $sum: '$sanitizedViews' },
+            totalActions: { $sum: '$sanitizedActions' },
+            totalCallClicks: { $sum: '$sanitizedCallClicks' },
+            totalWebsiteClicks: { $sum: '$sanitizedWebsiteClicks' },
+            totalDirectionRequests: { $sum: '$sanitizedDirectionRequests' },
             averageConversionRate: { $avg: '$conversionRate' },
             averageClickThroughRate: { $avg: '$clickThroughRate' },
             uniqueStores: { $addToSet: '$storeId' },
@@ -268,16 +308,49 @@ export async function GET(request: NextRequest) {
     }
 
     // Default behavior - return individual performance records
-    // Calculate aggregated metrics
+    // Calculate aggregated metrics with data sanitization
     const aggregatedMetrics = await Performance.aggregate([
       { $match: query },
       {
+        $addFields: {
+          // Sanitize numeric fields to prevent astronomical values
+          sanitizedViews: {
+            $cond: {
+              if: { $and: [{ $gte: ['$views', 0] }, { $lte: ['$views', 1000000] }] },
+              then: '$views',
+              else: 0
+            }
+          },
+          sanitizedActions: {
+            $cond: {
+              if: { $and: [{ $gte: ['$actions', 0] }, { $lte: ['$actions', 1000000] }] },
+              then: '$actions',
+              else: 0
+            }
+          },
+          sanitizedCallClicks: {
+            $cond: {
+              if: { $and: [{ $gte: ['$callClicks', 0] }, { $lte: ['$callClicks', 1000000] }] },
+              then: '$callClicks',
+              else: 0
+            }
+          },
+          sanitizedWebsiteClicks: {
+            $cond: {
+              if: { $and: [{ $gte: ['$websiteClicks', 0] }, { $lte: ['$websiteClicks', 1000000] }] },
+              then: '$websiteClicks',
+              else: 0
+            }
+          }
+        }
+      },
+      {
         $group: {
           _id: null,
-          totalViews: { $sum: '$views' },
-          totalActions: { $sum: '$actions' },
-          totalCallClicks: { $sum: '$callClicks' },
-          totalWebsiteClicks: { $sum: '$websiteClicks' },
+          totalViews: { $sum: '$sanitizedViews' },
+          totalActions: { $sum: '$sanitizedActions' },
+          totalCallClicks: { $sum: '$sanitizedCallClicks' },
+          totalWebsiteClicks: { $sum: '$sanitizedWebsiteClicks' },
           averageConversionRate: { $avg: '$conversionRate' },
           averageClickThroughRate: { $avg: '$clickThroughRate' }
         }

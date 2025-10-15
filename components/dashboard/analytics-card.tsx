@@ -17,6 +17,7 @@ interface AnalyticsCardProps {
   children?: React.ReactNode
   isLoading?: boolean
   isEmpty?: boolean
+  valueClassName?: string
 }
 
 export function AnalyticsCard({
@@ -28,7 +29,8 @@ export function AnalyticsCard({
   className,
   children,
   isLoading = false,
-  isEmpty = false
+  isEmpty = false,
+  valueClassName
 }: AnalyticsCardProps) {
   const renderValue = () => {
     if (isLoading) {
@@ -49,14 +51,14 @@ export function AnalyticsCard({
     // Format the value for better display
     const formattedValue = typeof value === 'number' 
       ? formatLargeNumber(value, { compact: true, maxLength: 10 })
-      : value
+      : (typeof value === 'string' ? value.replace(/e\+?\d+/i, '') : value)
     
     // Get responsive text size based on value length
     const textSizeClass = getResponsiveTextSize(formattedValue)
     
     return (
       <div 
-        className={`${textSizeClass} font-bold number-responsive number-compact min-w-0`} 
+        className={`${textSizeClass} font-bold number-responsive number-compact min-w-0 ${valueClassName || ''}`} 
         title={typeof value === 'number' ? value.toLocaleString() : value}
       >
         {formattedValue}

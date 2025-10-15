@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
     const storeId = searchParams.get('storeId')
     const brandId = searchParams.get('brandId')
     const type = searchParams.get('type') || 'brand' // 'store' or 'brand'
+    const accountId = searchParams.get('accountId') || undefined
+    const locationId = searchParams.get('locationId') || undefined
     const force = searchParams.get('force') === 'true' // Force re-analysis
     const days = parseInt(searchParams.get('days') || '30') // Analysis period in days (default 30)
     const showProgress = searchParams.get('showProgress') === 'true' // Show analysis progress
@@ -33,7 +35,8 @@ export async function GET(request: NextRequest) {
 
       const entityId = storeId || brandId
       const entityType = type as 'store' | 'brand'
-      const cacheKey = `${entityType}:${entityId}:${days}d`
+      // Include account and location in cache key to avoid cross-account contamination
+      const cacheKey = `${entityType}:${entityId}:${days}d:${accountId || 'na'}:${locationId || 'na'}`
       
       // Add account-specific cache key to prevent cross-contamination
       const accountSpecificCacheKey = `${cacheKey}:${Date.now().toString().slice(0, 8)}`
@@ -51,8 +54,8 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Check if analysis is needed
-      const needsAnalysis = force || await sentimentWorkflow.needsAnalysis(entityId!, entityType)
+      // Check if analysis is needed (scoped to requested days)
+      const needsAnalysis = force || await sentimentWorkflow.needsAnalysis(entityId!, entityType, days)
       
       let analytics
       

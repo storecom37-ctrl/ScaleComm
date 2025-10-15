@@ -2,6 +2,7 @@ import { Review } from '@/lib/database/separate-models'
 import { SentimentAnalytics } from '@/lib/database/sentiment-analytics-model'
 import { HybridSentimentAnalyzer } from './sentiment-analyzer'
 import { optimizedSentimentAnalyzer } from './optimized-sentiment-analyzer'
+import { geminiAnalyzer } from './gemini-api'
 import connectToDatabase from '@/lib/database/connection'
 import mongoose from 'mongoose'
 
@@ -73,14 +74,37 @@ export class SentimentWorkflowService {
   /**
    * Check if sentiment analysis is needed for an entity
    */
-  async needsAnalysis(entityId: string, entityType: 'brand' | 'store'): Promise<boolean> {
+  async needsAnalysis(entityId: string, entityType: 'brand' | 'store', days: number = 30): Promise<boolean> {
     await connectToDatabase()
 
-    // Check if there are any reviews that need sentiment analysis
+    // Compute analysis window
+    const endDate = new Date()
+    const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000))
+
+    // If we already have analytics and it's fresh compared to latest review, skip
+    const existing = await SentimentAnalytics.findOne({ entityId, entityType }).lean()
+
+    // Find latest review in window
+    const latestReview = await Review.findOne({
+      [entityType === 'brand' ? 'brandId' : 'storeId']: new mongoose.Types.ObjectId(entityId),
+      status: 'active',
+      comment: { $exists: true, $nin: [null, ''] },
+      gmbCreateTime: { $gte: startDate, $lte: endDate }
+    }).sort({ gmbCreateTime: -1 }).select({ gmbCreateTime: 1 }).lean()
+
+    if (existing && latestReview && existing.lastAnalyzed && existing.lastReviewDate) {
+      // If no newer reviews since last analyzed, no need to re-run
+      if (new Date(existing.lastReviewDate).getTime() >= new Date(latestReview.gmbCreateTime).getTime()) {
+        return false
+      }
+    }
+
+    // Check if there are any reviews in the window that still need analysis
     const reviewsNeedingAnalysis = await Review.countDocuments({
       [entityType === 'brand' ? 'brandId' : 'storeId']: new mongoose.Types.ObjectId(entityId),
       status: 'active',
       comment: { $exists: true, $nin: [null, ''] },
+      gmbCreateTime: { $gte: startDate, $lte: endDate },
       $or: [
         { 'sentimentAnalysis.sentiment': { $exists: false } },
         { 'sentimentAnalysis.sentiment': null }
@@ -120,8 +144,24 @@ export class SentimentWorkflowService {
       gmbCreateTime: { $gte: startDate, $lte: endDate }
     }).sort({ gmbCreateTime: -1 }) // Newest reviews first
 
+    // If there are no reviews in the selected period, do not throw.
+    // Return an "empty" analytics object so the UI can render a valid state.
     if (reviews.length === 0) {
-      throw new Error(`No reviews found for ${entityType}: ${entityId}`)
+      console.log(`ℹ️ No reviews found for ${entityType}: ${entityId} in the last ${days} days. Returning empty analytics.`)
+      const emptyAnalytics = await this.calculateAggregatedAnalytics(entityId, entityType, reviews)
+      emptyAnalytics.processingStats = {
+        totalReviews: 0,
+        processedInThisRun: 0,
+        remainingToProcess: 0,
+        processingComplete: true,
+        lastProcessedAt: new Date()
+      }
+      await SentimentAnalytics.findOneAndUpdate(
+        { entityId, entityType },
+        emptyAnalytics,
+        { upsert: true, new: true }
+      )
+      return emptyAnalytics
     }
 
     console.log(`📊 Found ${reviews.length} reviews to analyze`)
@@ -293,8 +333,24 @@ export class SentimentWorkflowService {
     const overallConfidence = Math.abs(overallScore)
     const overallTrend = this.determineTrend(periods['30d'], periods['60d'])
 
-    // Generate themes and recommendations
+    // Generate themes via lightweight keyword extraction
     const { positiveThemes, negativeThemes, recommendations } = await this.generateThemesAndRecommendations(reviews30d)
+
+    // Unified AI business insights (single prompt, best-effort)
+    // Send up to 50 recent review texts to the Gemini client; falls back safely if AI disabled
+    let unifiedInsights: any | null = null
+    try {
+      const reviewTexts = reviews30d
+        .slice(0, 50)
+        .map(r => r.comment)
+        .filter(Boolean)
+      if (reviewTexts.length > 0) {
+        unifiedInsights = await geminiAnalyzer.generateBusinessInsights(reviewTexts)
+      }
+    } catch (e) {
+      // Best-effort only; keep non-AI analytics intact
+      unifiedInsights = null
+    }
 
     return {
       entityId,
@@ -307,7 +363,10 @@ export class SentimentWorkflowService {
       periods,
       topPositiveThemes: positiveThemes,
       topNegativeThemes: negativeThemes,
-      recommendations,
+      // Prefer unified AI recommendations if available; otherwise keep rule-based recs
+      recommendations: Array.isArray(unifiedInsights?.aiRecommendations) && unifiedInsights.aiRecommendations.length > 0
+        ? unifiedInsights.aiRecommendations
+        : recommendations,
       totalReviewsAnalyzed: reviews.length,
       lastReviewDate: reviews[0]?.gmbCreateTime
     }

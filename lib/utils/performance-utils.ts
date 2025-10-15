@@ -40,6 +40,8 @@ export interface ProcessedPerformanceData {
   businessFoodOrders: number
   businessMessages: number
   desktopSearchImpressions: number
+  mobileSearchImpressions: number
+  desktopMapsImpressions: number
   mobileMapsImpressions: number
   conversionRate: number
   clickThroughRate: number
@@ -85,6 +87,8 @@ export class PerformanceDataProcessor {
           const dailyBusinessFoodOrders = Math.max(0, parseInt(String(dailyMetric.metrics.businessFoodOrders || 0)) || 0)
           const dailyBusinessMessages = Math.max(0, parseInt(String(dailyMetric.metrics.businessMessages || 0)) || 0)
           const dailyDesktopSearchImpressions = Math.max(0, parseInt(String(dailyMetric.metrics.desktopSearchImpressions || 0)) || 0)
+          const dailyMobileSearchImpressions = Math.max(0, parseInt(String(dailyMetric.metrics.mobileSearchImpressions || 0)) || 0)
+          const dailyDesktopMapsImpressions = Math.max(0, parseInt(String(dailyMetric.metrics.desktopMapsImpressions || 0)) || 0)
           const dailyMobileMapsImpressions = Math.max(0, parseInt(String(dailyMetric.metrics.mobileMapsImpressions || 0)) || 0)
           
           callClicks += dailyCallClicks
@@ -93,6 +97,8 @@ export class PerformanceDataProcessor {
           businessFoodOrders += dailyBusinessFoodOrders
           businessMessages += dailyBusinessMessages
           desktopSearchImpressions += dailyDesktopSearchImpressions
+          mobileSearchImpressions += dailyMobileSearchImpressions
+          desktopMapsImpressions += dailyDesktopMapsImpressions
           mobileMapsImpressions += dailyMobileMapsImpressions
         }
       })
@@ -101,7 +107,7 @@ export class PerformanceDataProcessor {
     }
     
     // Calculate total views from impressions if not already provided
-    const calculatedViews = desktopSearchImpressions + mobileMapsImpressions
+    const calculatedViews = desktopSearchImpressions + mobileSearchImpressions + desktopMapsImpressions + mobileMapsImpressions
     const finalViews = views > 0 ? views : calculatedViews
     
     // Data validation and correction
@@ -187,6 +193,8 @@ export class PerformanceDataProcessor {
       businessFoodOrders,
       businessMessages,
       desktopSearchImpressions,
+      mobileSearchImpressions,
+      desktopMapsImpressions,
       mobileMapsImpressions,
       conversionRate: Math.round(conversionRate * 100) / 100,
       clickThroughRate: Math.round(clickThroughRate * 100) / 100,

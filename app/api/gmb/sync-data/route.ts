@@ -75,6 +75,7 @@ async function syncGmbData(tokens: any, controller: ReadableStreamDefaultControl
       }
     }
   }
+
   
   // Helper function to safely close controller
   const safeClose = () => {
@@ -360,34 +361,44 @@ async function syncGmbData(tokens: any, controller: ReadableStreamDefaultControl
       } else if (dataType === 'insights') {
         const locationId = data[0]?.locationId
         const storeId = locationId ? await getStoreIdByLocationId(locationId, (brand._id as any).toString(), locationData) : null
-        const ops = data.map((insight: any) => ({
-          updateOne: {
-            filter: { storeId, 'period.startTime': new Date(insight.period.startTime), 'period.endTime': new Date(insight.period.endTime) },
-            update: { $set: {
-              brandId: brand._id,
-              accountId: brand.settings.gmbIntegration.gmbAccountId,
-              period: insight.period,
-              queries: insight.queries,
-              views: insight.views,
-              actions: insight.actions,
-              photoViews: insight.photoViews,
-              callClicks: insight.callClicks,
-              websiteClicks: insight.websiteClicks,
-              directionRequests: insight.directionRequests || 0,
-              businessBookings: insight.businessBookings,
-              businessFoodOrders: insight.businessFoodOrders,
-              businessMessages: insight.businessMessages,
-              desktopSearchImpressions: insight.desktopSearchImpressions,
-              mobileMapsImpressions: insight.mobileMapsImpressions,
-              dailyMetrics: insight.dailyMetrics,
-              websiteClicksSeries: insight.websiteClicksSeries,
-              callClicksSeries: insight.callClicksSeries,
-              source: 'gmb',
-              status: 'active'
-            } },
-            upsert: true
+        const ops = data.map((insight: any) => {
+          // Sanitize numeric values to prevent corruption
+          const sanitizeNumber = (value: any) => {
+            const num = Number(value) || 0
+            return (isNaN(num) || num < 0 || num > 1000000) ? 0 : num
           }
-        }))
+          
+          return {
+            updateOne: {
+              filter: { storeId, 'period.startTime': new Date(insight.period.startTime), 'period.endTime': new Date(insight.period.endTime) },
+              update: { $set: {
+                brandId: brand._id,
+                accountId: brand.settings.gmbIntegration.gmbAccountId,
+                period: insight.period,
+                queries: sanitizeNumber(insight.queries),
+                views: sanitizeNumber(insight.views),
+                actions: sanitizeNumber(insight.actions),
+                photoViews: sanitizeNumber(insight.photoViews),
+                callClicks: sanitizeNumber(insight.callClicks),
+                websiteClicks: sanitizeNumber(insight.websiteClicks),
+                directionRequests: sanitizeNumber(insight.directionRequests),
+                businessBookings: sanitizeNumber(insight.businessBookings),
+                businessFoodOrders: sanitizeNumber(insight.businessFoodOrders),
+                businessMessages: sanitizeNumber(insight.businessMessages),
+                desktopSearchImpressions: sanitizeNumber(insight.desktopSearchImpressions),
+                mobileSearchImpressions: sanitizeNumber(insight.mobileSearchImpressions),
+                desktopMapsImpressions: sanitizeNumber(insight.desktopMapsImpressions),
+                mobileMapsImpressions: sanitizeNumber(insight.mobileMapsImpressions),
+                dailyMetrics: insight.dailyMetrics,
+                websiteClicksSeries: insight.websiteClicksSeries,
+                callClicksSeries: insight.callClicksSeries,
+                source: 'gmb',
+                status: 'active'
+              } },
+              upsert: true
+            }
+          }
+        })
         const res = await Performance.bulkWrite(ops)
         stats = { inserted: res.insertedCount, modified: res.modifiedCount, upserted: res.upsertedCount }
       } else if (dataType === 'searchKeywords') {

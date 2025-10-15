@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { Button } from '@/components/ui/button'
@@ -18,11 +18,12 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  // Redirect if already authenticated
-  if (authenticated && !loading) {
-    router.push('/dashboard/overview')
-    return null
-  }
+  // Redirect if already authenticated (avoid updating router during render)
+  useEffect(() => {
+    if (authenticated && !loading) {
+      router.push('/dashboard/overview')
+    }
+  }, [authenticated, loading, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -44,6 +44,19 @@ export function formatLargeNumber(
     return number.toFixed(4)
   }
 
+  // Use Intl compact formatting for extremely large numbers or scientific notation
+  const numStr = String(number)
+  if (numStr.includes('e') || Math.abs(number) >= 1e12) {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        notation: 'compact',
+        maximumFractionDigits: 1
+      }).format(number)
+    } catch (_) {
+      // Fallback to custom compact below
+    }
+  }
+
   // If compact mode is disabled or number is small enough, use locale formatting
   if (!compact || Math.abs(number) < 1000) {
     const formatted = number.toLocaleString()

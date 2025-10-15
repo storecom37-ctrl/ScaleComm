@@ -23,8 +23,9 @@ export async function GET(request: NextRequest) {
       accessibleAccountIds = await getAllBrandAccountIds()
     }
 
-    // If not authenticated or no accessible accounts, return empty
-    if (!tokens || accessibleAccountIds.length === 0) {
+    // If not authenticated or no accessible accounts, allow queries scoped by a specific locationId
+    // This supports cases where the app already knows the location and wants to show data
+    if ((!tokens || accessibleAccountIds.length === 0) && !locationId) {
       return NextResponse.json({
         success: true,
         data: [],
@@ -47,8 +48,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Build query, support legacy locationId param but model uses storeId
-    const query: Record<string, unknown> = {
-      accountId: { $in: accessibleAccountIds }
+    const query: Record<string, unknown> = {}
+    if (accessibleAccountIds.length > 0) {
+      query.accountId = { $in: accessibleAccountIds }
     }
     if (locationId) query.storeId = locationId
     if (year) query['period.year'] = parseInt(year)
