@@ -79,6 +79,11 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
   const [analysisDays, setAnalysisDays] = useState<number>(30) // Analysis period in days
   const [progress, setProgress] = useState(0)
   const [statusMessage, setStatusMessage] = useState('')
+  const [ratingStats, setRatingStats] = useState<{
+    totalReviews: number
+    averageRating: number
+    ratingDistribution: { 1: number; 2: number; 3: number; 4: number; 5: number }
+  } | null>(null)
 
   const fetchAnalytics = async (force = false) => {
     // Check if we have the required ID
@@ -146,21 +151,46 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
     }
   }
 
-
-  const getMonthlyData = () => {
-    if (!analytics?.periods) return []
-    
-    // Convert analytics periods to monthly chart data
-    const months = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep']
-    return months.map((month, index) => {
-      const periodData = analytics.periods['30d'] // Use 30d data as base
-      return {
-        month,
-        positive: Math.floor(periodData.positive * (0.8 + Math.random() * 0.4)), // Add some variation
-        negative: Math.floor(periodData.negative * (0.8 + Math.random() * 0.4)),
-        neutral: Math.floor(periodData.neutral * (0.8 + Math.random() * 0.4)),
+  const fetchRatingStatistics = async () => {
+    if (!brandId && !storeId) return
+    try {
+      const params = new URLSearchParams()
+      if (brandId && type === 'brand') params.append('brandId', brandId)
+      if (storeId && type === 'store') params.append('storeId', storeId)
+      params.append('limit', '1')
+      const res = await fetch(`/api/reviews?${params.toString()}`)
+      const json = await res.json()
+      if (json?.success && json?.metadata?.statistics) {
+        const s = json.metadata.statistics
+        setRatingStats({
+          totalReviews: s.totalReviews || 0,
+          averageRating: s.averageRating || 0,
+          ratingDistribution: s.ratingDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        })
       }
-    })
+    } catch (e) {
+      setRatingStats(null)
+    }
+  }
+
+
+  const [monthlySeries, setMonthlySeries] = useState<any[]>([])
+
+  const getMonthlyData = () => monthlySeries
+
+  const fetchMonthlySeries = async () => {
+    if (!brandId && !storeId) return
+    const params = new URLSearchParams()
+    if (brandId && type === 'brand') params.append('brandId', brandId)
+    if (storeId && type === 'store') params.append('storeId', storeId)
+    try {
+      const res = await fetch(`/api/analytics/sentiment/monthly?${params.toString()}`)
+      const json = await res.json()
+      if (json?.success) setMonthlySeries(json.data)
+      else setMonthlySeries([])
+    } catch {
+      setMonthlySeries([])
+    }
   }
 
   const MonthlySentimentChart = ({ data }: { data: any[] }) => {
@@ -202,6 +232,8 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
 
   useEffect(() => {
     fetchAnalytics()
+    fetchMonthlySeries()
+    fetchRatingStatistics()
   }, [brandId, storeId, type])
 
   if (!brandId && !storeId) {
@@ -280,6 +312,29 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
 
   return (
     <div className="space-y-6">
+      {/* Rating Distribution and Monthly Trends Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RatingDistribution
+          totalReviews={ratingStats?.totalReviews || 0}
+          averageRating={ratingStats?.averageRating || 0}
+          ratingDistribution={ratingStats?.ratingDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }}
+        />
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Monthly Sentiment Analysis</CardTitle>
+            <CardDescription>
+              Track sentiment trends over time
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 w-full">
+              <MonthlySentimentChart data={getMonthlyData()} />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -326,7 +381,7 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
             <Brain className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold capitalize">{analytics.overallSentiment}</div>
+            <div className={`text-2xl font-bold capitalize ${analytics.overallSentiment === 'positive' ? 'text-green-600' : analytics.overallSentiment === 'neutral' ? 'text-yellow-600' : 'text-red-600'}`}>{analytics.overallSentiment}</div>
             <p className="text-xs text-muted-foreground">
               Confidence: {(analytics.overallConfidence * 100).toFixed(1)}%
             </p>
@@ -345,7 +400,7 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
             <CheckCircle className="h-4 w-4 text-positive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-positive">
+            <div className="text-2xl font-bold text-green-600">
               {currentPeriod.percentages.positive.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
@@ -360,7 +415,7 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
             <Minus className="h-4 w-4 text-neutral" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-neutral">
+            <div className="text-2xl font-bold text-yellow-600">
               {currentPeriod.percentages.neutral.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
@@ -375,7 +430,7 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
             <AlertTriangle className="h-4 w-4 text-negative" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-negative">
+            <div className="text-2xl font-bold text-red-600">
               {currentPeriod.percentages.negative.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
@@ -392,119 +447,20 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
           <CardContent>
             <div className="text-2xl font-bold">{analytics.totalReviewsAnalyzed}</div>
             <p className="text-xs text-muted-foreground">
-              Last analyzed: {new Date(analytics.lastAnalyzed).toLocaleDateString()}
+              Reviews analyzed in the last {analysisDays} days
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Rating Distribution and Monthly Trends Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RatingDistribution
-          totalReviews={analytics.totalReviewsAnalyzed}
-          averageRating={4.8} // This should come from analytics data
-          ratingDistribution={{
-            5: Math.round(analytics.totalReviewsAnalyzed * 0.93),
-            4: Math.round(analytics.totalReviewsAnalyzed * 0.03),
-            3: Math.round(analytics.totalReviewsAnalyzed * 0.01),
-            2: Math.round(analytics.totalReviewsAnalyzed * 0.01),
-            1: Math.round(analytics.totalReviewsAnalyzed * 0.02)
-          }}
-        />
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Sentiment Analysis</CardTitle>
-            <CardDescription>
-              Track sentiment trends over time
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Time Period Selector */}
-            {/* <div className="flex gap-2 mb-4">
-              {[
-                { days: 7, label: '7 Days' },
-                { days: 30, label: '30 Days' },
-                { days: 60, label: '60 Days' }
-              ].map((option) => (
-                <Button
-                  key={option.days}
-                  variant={analysisDays === option.days ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => {
-                    setAnalysisDays(option.days)
-                    fetchAnalytics(true) // Force refresh with new period
-                  }}
-                  disabled={isLoading}
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div> */}
-            <div className="h-64 w-full">
-              <MonthlySentimentChart data={getMonthlyData()} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs defaultValue="themes" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="themes">Themes</TabsTrigger>
           <TabsTrigger value="review-analysis">Review Analysis</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          {/* Period Selector */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Sentiment Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2 mb-4">
-                {(['7d', '30d', '60d', '90d'] as const).map((period) => (
-                  <Button
-                    key={period}
-                    variant={selectedPeriod === period ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedPeriod(period)}
-                  >
-                    {period}
-                  </Button>
-                ))}
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Positive</span>
-                    <span>{currentPeriod.percentages.positive.toFixed(1)}%</span>
-                  </div>
-                  <Progress value={currentPeriod.percentages.positive} className="h-2" />
-                </div>
-                
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-neutral">Neutral</span>
-                    <span className="text-neutral">{currentPeriod.percentages.neutral.toFixed(1)}%</span>
-                  </div>
-                  <Progress value={currentPeriod.percentages.neutral} className="h-2" />
-                </div>
-                
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Negative</span>
-                    <span>{currentPeriod.percentages.negative.toFixed(1)}%</span>
-                  </div>
-                  <Progress value={currentPeriod.percentages.negative} className="h-2" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
 
         <TabsContent value="themes" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

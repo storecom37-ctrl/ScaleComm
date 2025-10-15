@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     const daysDistribution = await Performance.aggregate([
       { $match: { status: 'active' } },
       { $group: { _id: '$period.dateRange.days', count: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
+      { $sort: { _id: 1 as const } }
     ])
     console.log('🔍 Store-wise Performance API - Days distribution:', daysDistribution)
     
@@ -209,26 +209,101 @@ export async function GET(request: NextRequest) {
           },
         }
       },
-      { $sort: { totalViews: -1 } },
+      { $sort: { totalViews: -1 as const } },
       { $limit: limit }
     ])
     
-    // Calculate overall aggregated metrics
+    // Calculate overall aggregated metrics with data sanitization
     const overallAggregation = await Performance.aggregate([
       { $match: query },
       {
+        $addFields: {
+          // Sanitize numeric fields to prevent astronomical values
+          sanitizedViews: {
+            $cond: {
+              if: { $and: [{ $gte: ['$views', 0] }, { $lte: ['$views', 1000000] }] },
+              then: '$views',
+              else: 0
+            }
+          },
+          sanitizedActions: {
+            $cond: {
+              if: { $and: [{ $gte: ['$actions', 0] }, { $lte: ['$actions', 1000000] }] },
+              then: '$actions',
+              else: 0
+            }
+          },
+          sanitizedCallClicks: {
+            $cond: {
+              if: { $and: [{ $gte: ['$callClicks', 0] }, { $lte: ['$callClicks', 1000000] }] },
+              then: '$callClicks',
+              else: 0
+            }
+          },
+          sanitizedWebsiteClicks: {
+            $cond: {
+              if: { $and: [{ $gte: ['$websiteClicks', 0] }, { $lte: ['$websiteClicks', 1000000] }] },
+              then: '$websiteClicks',
+              else: 0
+            }
+          },
+          sanitizedDirectionRequests: {
+            $cond: {
+              if: { $and: [{ $gte: ['$directionRequests', 0] }, { $lte: ['$directionRequests', 1000000] }] },
+              then: '$directionRequests',
+              else: 0
+            }
+          },
+          sanitizedPhotoViews: {
+            $cond: {
+              if: { $and: [{ $gte: ['$photoViews', 0] }, { $lte: ['$photoViews', 1000000] }] },
+              then: '$photoViews',
+              else: 0
+            }
+          },
+          sanitizedQueries: {
+            $cond: {
+              if: { $and: [{ $gte: ['$queries', 0] }, { $lte: ['$queries', 1000000] }] },
+              then: '$queries',
+              else: 0
+            }
+          },
+          sanitizedMessages: {
+            $cond: {
+              if: { $and: [{ $gte: ['$businessMessages', 0] }, { $lte: ['$businessMessages', 1000000] }] },
+              then: '$businessMessages',
+              else: 0
+            }
+          },
+          sanitizedBookings: {
+            $cond: {
+              if: { $and: [{ $gte: ['$businessBookings', 0] }, { $lte: ['$businessBookings', 1000000] }] },
+              then: '$businessBookings',
+              else: 0
+            }
+          },
+          sanitizedFoodOrders: {
+            $cond: {
+              if: { $and: [{ $gte: ['$businessFoodOrders', 0] }, { $lte: ['$businessFoodOrders', 1000000] }] },
+              then: '$businessFoodOrders',
+              else: 0
+            }
+          }
+        }
+      },
+      {
         $group: {
           _id: null,
-          totalViews: { $sum: '$views' },
-          totalActions: { $sum: '$actions' },
-          totalCallClicks: { $sum: '$callClicks' },
-          totalWebsiteClicks: { $sum: '$websiteClicks' },
-          totalDirectionRequests: { $sum: '$directionRequests' },
-          totalPhotoViews: { $sum: '$photoViews' },
-          totalQueries: { $sum: '$queries' },
-          totalMessages: { $sum: '$businessMessages' },
-          totalBookings: { $sum: '$businessBookings' },
-          totalFoodOrders: { $sum: '$businessFoodOrders' },
+          totalViews: { $sum: '$sanitizedViews' },
+          totalActions: { $sum: '$sanitizedActions' },
+          totalCallClicks: { $sum: '$sanitizedCallClicks' },
+          totalWebsiteClicks: { $sum: '$sanitizedWebsiteClicks' },
+          totalDirectionRequests: { $sum: '$sanitizedDirectionRequests' },
+          totalPhotoViews: { $sum: '$sanitizedPhotoViews' },
+          totalQueries: { $sum: '$sanitizedQueries' },
+          totalMessages: { $sum: '$sanitizedMessages' },
+          totalBookings: { $sum: '$sanitizedBookings' },
+          totalFoodOrders: { $sum: '$sanitizedFoodOrders' },
           averageConversionRate: { $avg: '$conversionRate' },
           averageClickThroughRate: { $avg: '$clickThroughRate' },
           uniqueStores: { $addToSet: '$storeId' },

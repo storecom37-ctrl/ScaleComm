@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Add sorting
-    pipeline.push({ $sort: { createdAt: -1 } })
+    pipeline.push({ $sort: { createdAt: -1 as const } })
     
     // Add pagination
     if (skip) {

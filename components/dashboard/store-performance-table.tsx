@@ -22,7 +22,10 @@ import {
   Target,
   Calendar,
   MapPin,
-  Loader2
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Info
 } from "lucide-react"
 import { useAccessibleStoreWisePerformanceData } from "@/lib/hooks/use-accessible-performance-data"
 import { formatLargeNumber, formatPercentage } from "@/lib/utils"
@@ -56,6 +59,8 @@ export function StorePerformanceTable({
   const [searchTerm, setSearchTerm] = useState("")
   const [sortBy, setSortBy] = useState<"views" | "engagement" | "calls" | "website">("views")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 5
 
   // Use the accessible store-wise performance data hook
   const {
@@ -122,6 +127,12 @@ export function StorePerformanceTable({
       
       return sortOrder === "desc" ? bValue - aValue : aValue - bValue
     })
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredStores.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentStores = filteredStores.slice(startIndex, endIndex)
 
   // Format numbers with proper handling of large values
   const formatNumber = (num: number | null | undefined) => {
@@ -472,7 +483,7 @@ export function StorePerformanceTable({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredStores.slice(0, 10).map((storeData: any) => {
+                  {currentStores.map((storeData: any) => {
                     const metrics = storeData.metrics || {}
                     const store = storeData.store || {}
                     const brand = storeData.brand || {}
@@ -536,6 +547,79 @@ export function StorePerformanceTable({
               </Table>
             </div>
           )}
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredStores.length)} of {filteredStores.length} stores
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      className="w-8 h-8 p-0"
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {/* Performance Grading Explanation */}
+          <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Performance Grading System</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">A</Badge>
+                    <span className="text-muted-foreground">90-100% - Excellent</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">B</Badge>
+                    <span className="text-muted-foreground">70-89% - Good</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs">C</Badge>
+                    <span className="text-muted-foreground">50-69% - Average</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-red-100 text-red-800 border-red-200 text-xs">D</Badge>
+                    <span className="text-muted-foreground">0-49% - Needs Improvement</span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Grades are based on overall engagement rate (calls + website clicks + directions) relative to total views.
+                </p>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

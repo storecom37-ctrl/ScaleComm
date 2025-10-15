@@ -1,9 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
 import { 
   Star, 
   MapPin, 
@@ -11,7 +13,10 @@ import {
   Globe, 
   MessageSquare,
   TrendingUp,
-  Target
+  Target,
+  ChevronLeft,
+  ChevronRight,
+  Info
 } from "lucide-react"
 import { ScoringDetails } from "@/lib/utils/scoring"
 
@@ -37,6 +42,14 @@ interface LocationScoringTableProps {
 }
 
 export function LocationScoringTable({ locations, isLoading }: LocationScoringTableProps) {
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 5
+  
+  const totalPages = Math.ceil(locations.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentLocations = locations.slice(startIndex, endIndex)
+  
   const getGradeColor = (grade: string) => {
     switch (grade.charAt(0)) {
       case 'A': return 'bg-green-100 text-green-800 border-green-200'
@@ -135,7 +148,7 @@ export function LocationScoringTable({ locations, isLoading }: LocationScoringTa
             Location-wise Visibility Scores
           </div>
           <Badge variant="secondary">
-            Top {Math.min(10, locations.length)} of {locations.length} locations
+            {startIndex + 1}-{Math.min(endIndex, locations.length)} of {locations.length} locations
           </Badge>
         </CardTitle>
         <CardDescription>Individual performance breakdown by location</CardDescription>
@@ -154,7 +167,7 @@ export function LocationScoringTable({ locations, isLoading }: LocationScoringTa
               </TableRow>
             </TableHeader>
             <TableBody>
-              {locations.slice(0, 10).map((location) => {
+              {currentLocations.map((location) => {
                 const { scoringDetails, metrics } = location
                 const { breakdown, grade } = scoringDetails
                 const addressLines = formatAddressShort(location.address)
@@ -257,6 +270,79 @@ export function LocationScoringTable({ locations, isLoading }: LocationScoringTa
                 {locations.filter(l => l.scoringDetails.grade === 'D' || l.scoringDetails.grade === 'F').length}
               </div>
               <div className="text-xs text-muted-foreground">Needs Improvement</div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1} to {Math.min(endIndex, locations.length)} of {locations.length} locations
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(page)}
+                    className="w-8 h-8 p-0"
+                  >
+                    {page}
+                  </Button>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        {/* Performance Grading Explanation */}
+        <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+          <div className="flex items-start gap-3">
+            <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm">Visibility Score Grading System</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">A</Badge>
+                  <span className="text-muted-foreground">90-100 - Excellent</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">B</Badge>
+                  <span className="text-muted-foreground">70-89 - Good</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs">C</Badge>
+                  <span className="text-muted-foreground">50-69 - Average</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-red-100 text-red-800 border-red-200 text-xs">D</Badge>
+                  <span className="text-muted-foreground">0-49 - Needs Improvement</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Scores are calculated based on reviews, performance metrics, profile completeness, and engagement rates.
+              </p>
             </div>
           </div>
         </div>

@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
           insight: '$gmbData.insights'
         }
       },
-      { $sort: { 'insight.period.startTime': -1 } }
+      { $sort: { 'insight.period.startTime': -1 as const } }
     ]
     
     // Add pagination

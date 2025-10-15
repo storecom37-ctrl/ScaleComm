@@ -99,6 +99,8 @@ export interface GmbInsights {
   businessFoodOrders: number
   businessMessages: number
   desktopSearchImpressions: number
+  mobileSearchImpressions: number
+  desktopMapsImpressions: number
   mobileMapsImpressions: number
   // Additional fields from new API
   dailyMetrics?: GmbDailyMetrics[]
@@ -1243,6 +1245,8 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
         'CALL_CLICKS', 
         'BUSINESS_DIRECTION_REQUESTS',
         'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH', 
+        'BUSINESS_IMPRESSIONS_MOBILE_SEARCH',
+        'BUSINESS_IMPRESSIONS_DESKTOP_MAPS',
         'BUSINESS_IMPRESSIONS_MOBILE_MAPS'
       ]
       dailyMetrics = await this.getMultiDailyMetricsTimeSeries(locationName, coreMetrics, startDateObj, endDateObj)
@@ -1258,11 +1262,13 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
         callClicksSeries = await this.getDailyMetricsTimeSeries(locationName, 'CALL_CLICKS', startDateObj, endDateObj)
         const directionRequestsSeries = await this.getDailyMetricsTimeSeries(locationName, 'BUSINESS_DIRECTION_REQUESTS', startDateObj, endDateObj)
         desktopSearchImpressionsSeries = await this.getDailyMetricsTimeSeries(locationName, 'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH', startDateObj, endDateObj)
+        const mobileSearchImpressionsSeries = await this.getDailyMetricsTimeSeries(locationName, 'BUSINESS_IMPRESSIONS_MOBILE_SEARCH', startDateObj, endDateObj)
+        const desktopMapsImpressionsSeries = await this.getDailyMetricsTimeSeries(locationName, 'BUSINESS_IMPRESSIONS_DESKTOP_MAPS', startDateObj, endDateObj)
         mobileMapsImpressionsSeries = await this.getDailyMetricsTimeSeries(locationName, 'BUSINESS_IMPRESSIONS_MOBILE_MAPS', startDateObj, endDateObj)
         
         
         // Convert time series to daily metrics format
-        if (websiteClicksSeries || callClicksSeries || directionRequestsSeries || desktopSearchImpressionsSeries || mobileMapsImpressionsSeries) {
+        if (websiteClicksSeries || callClicksSeries || directionRequestsSeries || desktopSearchImpressionsSeries || mobileSearchImpressionsSeries || desktopMapsImpressionsSeries || mobileMapsImpressionsSeries) {
           const dateMap = new Map<string, any>()
           
           websiteClicksSeries?.dailyValues.forEach(dv => {
@@ -1313,6 +1319,30 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
             dateMap.get(key)!.metrics.desktopSearchImpressions = dv.value
           })
 
+          mobileSearchImpressionsSeries?.dailyValues.forEach(dv => {
+            const key = `${dv.date.year}-${dv.date.month}-${dv.date.day}`
+            if (!dateMap.has(key)) {
+              dateMap.set(key, {
+                locationId: locationName,
+                date: dv.date,
+                metrics: {}
+              })
+            }
+            dateMap.get(key)!.metrics.mobileSearchImpressions = dv.value
+          })
+
+          desktopMapsImpressionsSeries?.dailyValues.forEach(dv => {
+            const key = `${dv.date.year}-${dv.date.month}-${dv.date.day}`
+            if (!dateMap.has(key)) {
+              dateMap.set(key, {
+                locationId: locationName,
+                date: dv.date,
+                metrics: {}
+              })
+            }
+            dateMap.get(key)!.metrics.desktopMapsImpressions = dv.value
+          })
+
           mobileMapsImpressionsSeries?.dailyValues.forEach(dv => {
             const key = `${dv.date.year}-${dv.date.month}-${dv.date.day}`
             if (!dateMap.has(key)) {
@@ -1350,8 +1380,10 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
         businessBookings: 0,
         businessFoodOrders: 0,
         businessMessages: 0,
-        desktopSearchImpressions: 0,
-        mobileMapsImpressions: 0,
+      desktopSearchImpressions: 0,
+      mobileSearchImpressions: 0,
+      desktopMapsImpressions: 0,
+      mobileMapsImpressions: 0,
         dailyMetrics: [],
         websiteClicksSeries: null,
         callClicksSeries: null
@@ -1363,18 +1395,28 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
     let totalCallClicks = 0
     let totalDirectionRequests = 0
     let totalDesktopSearchImpressions = 0
+    let totalMobileSearchImpressions = 0
+    let totalDesktopMapsImpressions = 0
     let totalMobileMapsImpressions = 0
 
     dailyMetrics.forEach(metric => {
-      totalWebsiteClicks += metric.metrics.websiteClicks || 0
-      totalCallClicks += metric.metrics.callClicks || 0
-      totalDirectionRequests += metric.metrics.directionRequests || 0
-      totalDesktopSearchImpressions += metric.metrics.desktopSearchImpressions || 0
-      totalMobileMapsImpressions += metric.metrics.mobileMapsImpressions || 0
+      // Safely add values, filtering out NaN and astronomical numbers
+      const safeAdd = (current: number, value: any) => {
+        const num = Number(value) || 0
+        return (isNaN(num) || num < 0 || num > 1000000) ? current : current + num
+      }
+      
+      totalWebsiteClicks = safeAdd(totalWebsiteClicks, metric.metrics.websiteClicks)
+      totalCallClicks = safeAdd(totalCallClicks, metric.metrics.callClicks)
+      totalDirectionRequests = safeAdd(totalDirectionRequests, metric.metrics.directionRequests)
+      totalDesktopSearchImpressions = safeAdd(totalDesktopSearchImpressions, metric.metrics.desktopSearchImpressions)
+      totalMobileSearchImpressions = safeAdd(totalMobileSearchImpressions, metric.metrics.mobileSearchImpressions)
+      totalDesktopMapsImpressions = safeAdd(totalDesktopMapsImpressions, metric.metrics.desktopMapsImpressions)
+      totalMobileMapsImpressions = safeAdd(totalMobileMapsImpressions, metric.metrics.mobileMapsImpressions)
     })
 
     // Calculate total views from impressions
-    const totalViews = totalDesktopSearchImpressions + totalMobileMapsImpressions
+    const totalViews = totalDesktopSearchImpressions + totalMobileSearchImpressions + totalDesktopMapsImpressions + totalMobileMapsImpressions
 
     // Create insights object with new API data
     const insights: GmbInsights = {
@@ -1394,6 +1436,8 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
       businessFoodOrders: 0, // Not available in current API
       businessMessages: 0, // Not available in current API
       desktopSearchImpressions: totalDesktopSearchImpressions,
+      mobileSearchImpressions: totalMobileSearchImpressions,
+      desktopMapsImpressions: totalDesktopMapsImpressions,
       mobileMapsImpressions: totalMobileMapsImpressions,
       // Include raw data for debugging
       dailyMetrics,
@@ -1406,6 +1450,8 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
       websiteClicks: totalWebsiteClicks,
       callClicks: totalCallClicks,
       desktopSearchImpressions: totalDesktopSearchImpressions,
+      mobileSearchImpressions: totalMobileSearchImpressions,
+      desktopMapsImpressions: totalDesktopMapsImpressions,
       mobileMapsImpressions: totalMobileMapsImpressions
     })
 
@@ -1430,6 +1476,8 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
       businessFoodOrders: 0,
       businessMessages: 0,
       desktopSearchImpressions: 0,
+      mobileSearchImpressions: 0,
+      desktopMapsImpressions: 0,
       mobileMapsImpressions: 0,
       dailyMetrics: [],
       websiteClicksSeries: null,
@@ -1705,6 +1753,16 @@ async getMultiDailyMetricsTimeSeries(
           validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH')
         }
         
+        if (errorText.includes('BUSINESS_IMPRESSIONS_MOBILE_SEARCH')) {
+          console.log('Removing BUSINESS_IMPRESSIONS_MOBILE_SEARCH metric...')
+          validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_MOBILE_SEARCH')
+        }
+        
+        if (errorText.includes('BUSINESS_IMPRESSIONS_DESKTOP_MAPS')) {
+          console.log('Removing BUSINESS_IMPRESSIONS_DESKTOP_MAPS metric...')
+          validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_DESKTOP_MAPS')
+        }
+        
         if (errorText.includes('BUSINESS_IMPRESSIONS_MOBILE_MAPS')) {
           console.log('Removing BUSINESS_IMPRESSIONS_MOBILE_MAPS metric...')
           validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_MOBILE_MAPS')
@@ -1756,8 +1814,17 @@ async getMultiDailyMetricsTimeSeries(
                 
                 const dailyMetric = metricsMap.get(dateKey)!
                 const metricKey = this.mapMetricTypeToKey(metricType)
-                // Convert string values to numbers, handle empty values
-                const value = datedValue.value ? parseInt(datedValue.value) || 0 : 0
+                // Convert string values to numbers, handle empty values and invalid numbers
+                let value = 0
+                if (datedValue.value) {
+                  const parsed = parseInt(datedValue.value)
+                  // Check for valid number and reasonable range (prevent astronomical values)
+                  if (!isNaN(parsed) && parsed >= 0 && parsed <= 1000000) {
+                    value = parsed
+                  } else {
+                    console.warn(`Invalid or out-of-range value for ${metricType}: ${datedValue.value}, using 0`)
+                  }
+                }
                 dailyMetric.metrics[metricKey] = value
               }
             }
@@ -1940,6 +2007,8 @@ private mapMetricTypeToKey(metricType: string): string {
     'BUSINESS_FOOD_ORDERS': 'businessFoodOrders',
     'BUSINESS_MESSAGES': 'businessMessages',
     'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH': 'desktopSearchImpressions',
+    'BUSINESS_IMPRESSIONS_MOBILE_SEARCH': 'mobileSearchImpressions',
+    'BUSINESS_IMPRESSIONS_DESKTOP_MAPS': 'desktopMapsImpressions',
     'BUSINESS_IMPRESSIONS_MOBILE_MAPS': 'mobileMapsImpressions'
   }
   

@@ -97,7 +97,7 @@ export default function ReviewsPage() {
   const [viewType, setViewType] = useState<'brand' | 'store' | 'all'>('all')
   
   // View state
-  const [currentView, setCurrentView] = useState<'main' | 'replied' | 'sentiment' | 'business-insights' | 'keyword-analytics'>('main')
+  const [currentView, setCurrentView] = useState<'main' | 'replied' | 'sentiment' | 'business-insights' | 'keyword-analytics'>('sentiment')
   
   // Bulk selection state
   const [selectedReviews, setSelectedReviews] = useState<Set<string>>(new Set())
@@ -441,6 +441,7 @@ export default function ReviewsPage() {
   const thisMonthReviews = reviewsMetadata?.statistics?.thisMonthReviews || 0
   const lastMonthReviews = reviewsMetadata?.statistics?.lastMonthReviews || 0
   const ratingDistribution = reviewsMetadata?.statistics?.ratingDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  const totalAllReviews = reviewsMetadata?.statistics?.totalAllReviews || 0
   
   // Calculate response rate from current page for display
   const currentPageReviews = filteredAndSortedReviews
@@ -454,6 +455,7 @@ export default function ReviewsPage() {
   
   // Use server-provided total count for accurate pagination
   const totalCount = reviewsTotalCount || filteredAndSortedReviews.length
+  const totalForCard = totalAllReviews > 0 ? totalAllReviews : totalCount
   const totalPages = Math.ceil(totalCount / itemsPerPage)
   
   // Bulk selection handlers
@@ -704,7 +706,7 @@ export default function ReviewsPage() {
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalCount}</div>
+            <div className="text-2xl font-bold">{totalForCard}</div>
             <p className="text-xs text-muted-foreground">
               {isLoading ? "Loading..." :
                hasError ? "Error loading" :
@@ -720,7 +722,7 @@ export default function ReviewsPage() {
             <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{averageRating.toFixed(1)}</div>
+            <div className={`text-2xl font-bold ${averageRating >= 4 ? 'text-green-600' : averageRating >= 3 ? 'text-yellow-600' : 'text-red-600'}`}>{averageRating.toFixed(1)}</div>
             <p className="text-xs text-muted-foreground">
               {totalCount > 0 
                 ? (averageRating >= 4.5 ? "Excellent performance" : 
@@ -993,20 +995,6 @@ export default function ReviewsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {/* Search */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Search</label>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search reviews..." 
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-
               {/* Rating Filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Rating</label>
@@ -1044,34 +1032,6 @@ export default function ReviewsPage() {
                       <div className="flex items-center">
                         {renderStars(1)}
                         <span className="ml-2">1 Star</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Status Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Status</label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                    <SelectItem value="review">Under Review</SelectItem>
-                    <SelectItem value="flagged">Flagged</SelectItem>
-                    <SelectItem value="responded">
-                      <div className="flex items-center">
-                        <CheckCircle className="h-3 w-3 mr-2 text-green-500" />
-                        <span>Responded</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="unresponded">
-                      <div className="flex items-center">
-                        <AlertCircle className="h-3 w-3 mr-2 text-orange-500" />
-                        <span>Not Responded</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -1125,84 +1085,8 @@ export default function ReviewsPage() {
               </div>
             </div>
 
-            {/* Advanced Filters Row */}
+            {/* Sentiment Filter */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-4">
-              {/* Response Time Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Response Time</label>
-                <Select value={responseTimeFilter} onValueChange={setResponseTimeFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Response Times" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Response Times</SelectItem>
-                    <SelectItem value="fast">
-                      <div className="flex items-center">
-                        <CheckCircle className="h-3 w-3 mr-2 text-green-500" />
-                        <span>Fast (&lt; 24h)</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="medium">
-                      <div className="flex items-center">
-                        <AlertCircle className="h-3 w-3 mr-2 text-yellow-500" />
-                        <span>Medium (1-3 days)</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="slow">
-                      <div className="flex items-center">
-                        <X className="h-3 w-3 mr-2 text-red-500" />
-                        <span>Slow (&gt; 3 days)</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="no-response">
-                      <div className="flex items-center">
-                        <Minus className="h-3 w-3 mr-2 text-gray-500" />
-                        <span>No Response</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Platform Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Platform</label>
-                <Select value={platformFilter} onValueChange={setPlatformFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Platforms" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Platforms</SelectItem>
-                    <SelectItem value="google">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 mr-2 bg-blue-500 rounded-sm"></div>
-                        <span>Google My Business</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="facebook">Facebook</SelectItem>
-                    <SelectItem value="yelp">Yelp</SelectItem>
-                    <SelectItem value="tripadvisor">TripAdvisor</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Additional Filters Placeholder */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Review Length</label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Lengths" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Lengths</SelectItem>
-                    <SelectItem value="short">Short (&lt; 50 chars)</SelectItem>
-                    <SelectItem value="medium">Medium (50-200 chars)</SelectItem>
-                    <SelectItem value="long">Long (&gt; 200 chars)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Sentiment Filter Placeholder */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Sentiment</label>
                 <Select>
@@ -1243,126 +1127,7 @@ export default function ReviewsPage() {
               </div>
             </div>
 
-            {/* Filter Presets */}
-            <div className="mt-6 pt-4 border-t">
-              <div className="space-y-3">
-                <label className="text-sm font-medium">Quick Filters</label>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setRatingFilter("1")
-                      setStatusFilter("all")
-                      setDateRangeFilter("all")
-                      setResponseTimeFilter("all")
-                      setPlatformFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Low Ratings (1★)
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setRatingFilter("5")
-                      setStatusFilter("all")
-                      setDateRangeFilter("all")
-                      setResponseTimeFilter("all")
-                      setPlatformFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-green-600 hover:text-green-700"
-                  >
-                    <Star className="h-3 w-3 mr-1 fill-current" />
-                    High Ratings (5★)
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setStatusFilter("unresponded")
-                      setRatingFilter("all")
-                      setDateRangeFilter("all")
-                      setResponseTimeFilter("no-response")
-                      setPlatformFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-orange-600 hover:text-orange-700"
-                  >
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Needs Response
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setDateRangeFilter("week")
-                      setRatingFilter("all")
-                      setStatusFilter("all")
-                      setResponseTimeFilter("all")
-                      setPlatformFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-blue-600 hover:text-blue-700"
-                  >
-                    <MessageSquare className="h-3 w-3 mr-1" />
-                    Recent Reviews
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setResponseTimeFilter("fast")
-                      setRatingFilter("all")
-                      setStatusFilter("all")
-                      setDateRangeFilter("all")
-                      setPlatformFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-green-600 hover:text-green-700"
-                  >
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Fast Responses
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setPlatformFilter("google")
-                      setRatingFilter("all")
-                      setStatusFilter("all")
-                      setDateRangeFilter("all")
-                      setResponseTimeFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-blue-600 hover:text-blue-700"
-                  >
-                    <div className="w-3 h-3 mr-1 bg-blue-500 rounded-sm"></div>
-                    Google Reviews
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setRatingFilter("all")
-                      setStatusFilter("all")
-                      setDateRangeFilter("all")
-                      setResponseTimeFilter("all")
-                      setPlatformFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-gray-600 hover:text-gray-700"
-                  >
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    Reset Filters
-                  </Button>
-                </div>
-              </div>
-            </div>
+            {/* Quick Filters removed per request */}
           </CardContent>
         </Card>
       )}
