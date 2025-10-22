@@ -6,6 +6,17 @@ const CONFIDENCE_THRESHOLDS = {
   MEDIUM: 0.6,
   LOW: 0.4
 }
+interface SentimentStats {
+  total: number
+  positive: number
+  negative: number
+  neutral: number
+  averageConfidence: number
+  averageScore: number
+  highConfidence: number
+  mediumConfidence: number
+  lowConfidence: number
+}
 
 export class HybridSentimentAnalyzer {
   constructor() {
@@ -67,8 +78,8 @@ export class HybridSentimentAnalyzer {
     
     // Positive indicators
     const positiveWords = [
-      'good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'love', 'perfect', 'best', 'awesome', 
-      'outstanding', 'brilliant', 'superb', 'delicious', 'fresh', 'clean', 'friendly', 'helpful', 'fast', 
+      'good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'love', 'perfect', 'best', 'awesome',
+      'outstanding', 'brilliant', 'superb', 'delicious', 'fresh', 'clean', 'friendly', 'helpful', 'fast',
       'quick', 'easy', 'convenient', 'affordable', 'cheap', 'value', 'recommend', 'satisfied', 'happy', 'pleased',
       'excellent service', 'great food', 'amazing experience', 'must try', 'highly recommend', 'will come back',
       'worth it', 'value for money', 'pocket friendly', 'fair price', 'reasonable price'
@@ -76,37 +87,37 @@ export class HybridSentimentAnalyzer {
     
     // Negative indicators
     const negativeWords = [
-      'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'disappointed', 'disgusting', 'dirty', 'slow', 
-      'rude', 'expensive', 'overpriced', 'waste', 'regret', 'avoid', 'complaint', 'problem', 'issue', 'wrong', 
+      'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'disappointed', 'disgusting', 'dirty', 'slow',
+      'rude', 'expensive', 'overpriced', 'waste', 'regret', 'avoid', 'complaint', 'problem', 'issue', 'wrong',
       'broken', 'poor', 'unacceptable', 'frustrated', 'angry', 'upset', 'never again', 'don\'t go', 'rip off',
-      'worst experience', 'waste of money', 'unfriendly', 'unclean', 'stale', 'cold', 'burnt', 'undercooked', 
-      'overcooked', 'tasteless', 'bland', 'so so', 'mediocre', 'average', 'okay', 'not great', 'could be better', 
+      'worst experience', 'waste of money', 'unfriendly', 'unclean', 'stale', 'cold', 'burnt', 'undercooked',
+      'overcooked', 'tasteless', 'bland', 'so so', 'mediocre', 'average', 'okay', 'not great', 'could be better',
       'disappointing', 'let down'
     ]
     
     let positiveScore = 0
     let negativeScore = 0
-    
+
     // Count positive and negative words
     positiveWords.forEach(word => {
       const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi')
       const matches = lowerText.match(regex)
       if (matches) positiveScore += matches.length
     })
-    
+
     negativeWords.forEach(word => {
       const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi')
       const matches = lowerText.match(regex)
       if (matches) negativeScore += matches.length
     })
-    
+
     // Calculate sentiment
     const totalScore = positiveScore - negativeScore
     const confidence = Math.min((Math.abs(totalScore) + 1) / 10, 1)
-    
+
     let sentiment: 'positive' | 'negative' | 'neutral'
     let score: number
-    
+
     if (totalScore > 0) {
       sentiment = 'positive'
       score = Math.min(totalScore / 5, 1)
@@ -117,7 +128,7 @@ export class HybridSentimentAnalyzer {
       sentiment = 'neutral'
       score = 0
     }
-    
+
     return {
       sentiment,
       confidence,
@@ -132,7 +143,7 @@ export class HybridSentimentAnalyzer {
    */
   async analyzeBatch(reviews: string[]): Promise<SentimentResult[]> {
     const results: SentimentResult[] = []
-    
+
     // Process in batches to avoid rate limits
     const batchSize = 10
     for (let i = 0; i < reviews.length; i += batchSize) {
@@ -141,14 +152,59 @@ export class HybridSentimentAnalyzer {
         batch.map(review => this.analyzeSentiment(review))
       )
       results.push(...batchResults)
-      
+
       // Small delay between batches
       if (i + batchSize < reviews.length) {
         await new Promise(resolve => setTimeout(resolve, 100))
       }
     }
-    
+
     return results
+  }
+
+  /**
+   * Calculate statistics from sentiment results
+   */
+  getSentimentStats(results: SentimentResult[]): SentimentStats {
+    if (results.length === 0) {
+      return {
+        total: 0,
+        positive: 0,
+        negative: 0,
+        neutral: 0,
+        averageConfidence: 0,
+        averageScore: 0,
+        highConfidence: 0,
+        mediumConfidence: 0,
+        lowConfidence: 0
+      }
+    }
+
+    const positive = results.filter(r => r.sentiment === 'positive').length
+    const negative = results.filter(r => r.sentiment === 'negative').length
+    const neutral = results.filter(r => r.sentiment === 'neutral').length
+
+    const totalConfidence = results.reduce((sum, r) => sum + r.confidence, 0)
+    const totalScore = results.reduce((sum, r) => sum + r.score, 0)
+
+    const highConfidence = results.filter(r => r.confidence >= CONFIDENCE_THRESHOLDS.HIGH).length
+    const mediumConfidence = results.filter(r =>
+      r.confidence >= CONFIDENCE_THRESHOLDS.MEDIUM &&
+      r.confidence < CONFIDENCE_THRESHOLDS.HIGH
+    ).length
+    const lowConfidence = results.filter(r => r.confidence < CONFIDENCE_THRESHOLDS.MEDIUM).length
+
+    return {
+      total: results.length,
+      positive,
+      negative,
+      neutral,
+      averageConfidence: totalConfidence / results.length,
+      averageScore: totalScore / results.length,
+      highConfidence,
+      mediumConfidence,
+      lowConfidence
+    }
   }
 
   /**
