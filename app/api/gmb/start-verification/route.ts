@@ -39,10 +39,8 @@ export async function POST(request: NextRequest) {
         // Initialize GMB data if it doesn't exist
         await VerificationService.initializeGmbData(storeId)
 
-        // Determine verification method
-        const method = verificationOptions.phoneOptions ? 'PHONE_CALL' : 
-                      verificationOptions.postcardOptions ? 'POSTCARD' : 
-                      verificationOptions.emailOptions ? 'EMAIL' : 'MANUAL'
+        // Determine verification method from the request
+        const method = verificationOptions.method || 'MANUAL'
 
         // Add verification attempt to history
         await VerificationService.addVerificationAttempt(storeId, {
@@ -52,8 +50,8 @@ export async function POST(request: NextRequest) {
           startedAt: new Date(),
           source: 'api_start_verification',
           details: {
-            phoneNumber: verificationOptions.phoneOptions?.phoneNumber,
-            emailAddress: verificationOptions.emailOptions?.emailAddress
+            phoneNumber: verificationOptions.phoneNumber,
+            emailAddress: verificationOptions.emailAddress
           }
         })
 

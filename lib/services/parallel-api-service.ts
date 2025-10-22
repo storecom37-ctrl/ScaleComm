@@ -363,8 +363,8 @@ export class GmbParallelDataService {
     const dateRanges = [
       { days: 7, label: '7 days' },
       { days: 30, label: '30 days' },
-      { days: 90, label: '90 days' },
-      { days: 180, label: '180 days' }
+      { days: 60, label: '60 days' },
+      { days: 90, label: '90 days' }
     ]
 
     const endDate = new Date()

@@ -10,19 +10,22 @@ export async function GET(request: NextRequest) {
   try {
     await connectToDatabase()
     
-      const { searchParams } = new URL(request.url)
-      const storeId = searchParams.get('storeId')
-      const brandId = searchParams.get('brandId')
-      const type = searchParams.get('type') || 'store' // 'store' or 'brand'
-      const force = searchParams.get('force') === 'true' // Force re-analysis
-      const days = parseInt(searchParams.get('days') || '30') // Analysis period in days (default 30)
+    const { searchParams } = new URL(request.url)
+    const storeId = searchParams.get('storeId')
+    const brandId = searchParams.get('brandId')
+    const type = searchParams.get('type') || 'brand' // 'store' or 'brand'
+    const accountId = searchParams.get('accountId') || undefined
+    const locationId = searchParams.get('locationId') || undefined
+    const force = searchParams.get('force') === 'true' // Force re-analysis
+    const days = parseInt(searchParams.get('days') || '30') // Analysis period in days (default 30)
+    const showProgress = searchParams.get('showProgress') === 'true' // Show analysis progress
     
     // Add timeout for the entire operation (2 minutes)
-    const timeoutPromise = new Promise((_, reject) => {
+    const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error('Analysis timeout - operation took too long')), 120000) // 2 minutes
     })
     
-    const analysisPromise = (async () => {
+    const analysisPromise = (async (): Promise<NextResponse> => {
       if (!storeId && !brandId) {
         return NextResponse.json({
           success: false,
@@ -30,9 +33,13 @@ export async function GET(request: NextRequest) {
         }, { status: 400 })
       }
 
-        const entityId = storeId || brandId
-        const entityType = type as 'store' | 'brand'
-        const cacheKey = `${entityType}:${entityId}:${days}d`
+      const entityId = storeId || brandId
+      const entityType = type as 'store' | 'brand'
+      // Include account and location in cache key to avoid cross-account contamination
+      const cacheKey = `${entityType}:${entityId}:${days}d:${accountId || 'na'}:${locationId || 'na'}`
+      
+      // Add account-specific cache key to prevent cross-contamination
+      const accountSpecificCacheKey = `${cacheKey}:${Date.now().toString().slice(0, 8)}`
 
       // Check cache first (unless force refresh)
       if (!force) {
@@ -47,8 +54,8 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Check if analysis is needed
-      const needsAnalysis = force || await sentimentWorkflow.needsAnalysis(entityId!, entityType)
+      // Check if analysis is needed (scoped to requested days)
+      const needsAnalysis = force || await sentimentWorkflow.needsAnalysis(entityId!, entityType, days)
       
       let analytics
       
@@ -84,12 +91,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: analytics,
-        cached: false
+        cached: false,
+        analysisInfo: {
+          entityId,
+          entityType,
+          days,
+          processed: analytics.processingStats?.processedInThisRun || 0,
+          remaining: analytics.processingStats?.remainingToProcess || 0,
+          total: (analytics.processingStats?.processedInThisRun || 0) + (analytics.processingStats?.remainingToProcess || 0)
+        }
       })
     })()
     
     // Race between analysis and timeout
-    return await Promise.race([analysisPromise, timeoutPromise])
+    try {
+      return await Promise.race([analysisPromise, timeoutPromise])
+    } catch (error) {
+      // Handle timeout or other errors
+      return NextResponse.json({
+        success: false,
+        error: 'Analysis timed out or failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, { status: 500 })
+    }
 
   } catch (error: any) {
     console.error('Sentiment analytics error:', error)

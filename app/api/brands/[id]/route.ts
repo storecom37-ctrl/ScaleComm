@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/database/connection'
 import { Brand } from '@/lib/database/models'
-// AWS S3 removed - using placeholder URLs
+import { deleteFromS3 } from '@/lib/services/aws-s3'
 import bcrypt from 'bcryptjs'
 import { getSession } from '@/lib/utils/session'
 import { canAccessBrand } from '@/lib/utils/permissions'

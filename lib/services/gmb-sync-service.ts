@@ -119,20 +119,43 @@ export class GmbSyncService {
             name: location.name,
             storeCode: location.name.replace(/\s+/g, '-').toLowerCase(),
             // Keep existing slug to avoid duplicates
-            phone: location.phoneNumber || existingStore.phone,
-            address: existingStore.address || {
-              line1: location.address.split(',')[0] || '',
-              city: location.address.split(',')[location.address.split(',').length - 2]?.trim() || '',
-              state: location.address.split(',')[location.address.split(',').length - 2]?.trim() || '',
-              postalCode: location.address.split(',').pop()?.trim() || '',
-              countryCode: 'IN'
+            phone: (location as any).phoneNumbers?.primaryPhone || location.phoneNumber || existingStore.phone,
+            address: {
+              ...existingStore.address,
+              line1: (location as any).storefrontAddress?.addressLines?.[0] || location.address?.split(',')[0] || '',
+              line2: (location as any).storefrontAddress?.addressLines?.slice(1).join(', ') || '',
+              locality: (location as any).storefrontAddress?.locality || location.address?.split(',')[location.address.split(',').length - 2]?.trim() || '',
+              city: (location as any).storefrontAddress?.locality || location.address?.split(',')[location.address.split(',').length - 2]?.trim() || '',
+              state: (location as any).storefrontAddress?.administrativeArea || location.address?.split(',')[location.address.split(',').length - 2]?.trim() || '',
+              postalCode: (location as any).storefrontAddress?.postalCode || location.address?.split(',').pop()?.trim() || '',
+              countryCode: (location as any).storefrontAddress?.regionCode || 'IN',
+              // Extract coordinates from GMB API response
+              latitude: (location as any).latlng?.latitude,
+              longitude: (location as any).latlng?.longitude
             },
-            primaryCategory: location.categories?.[0] || existingStore.primaryCategory || 'Business',
+            primaryCategory: (location as any).categories?.primaryCategory?.displayName || location.categories?.[0] || existingStore.primaryCategory || 'Business',
+            additionalCategories: (location as any).categories?.additionalCategories || [],
             brandId: brandId,
-            gmbLocationId: location.id,
+            gmbLocationId: location.name, // Use location.name as it contains the full GMB location path
             status: location.verified ? 'active' : (existingStore.status || 'draft'),
+            verified: location.verified || false,
+            lastSyncAt: new Date(),
             // Update microsite URL from GMB (websiteUri from Business Information API)
-            'microsite.gmbUrl': location.micrositeUrl || location.websiteUrl || existingStore.microsite?.gmbUrl
+            'microsite.gmbUrl': (location as any).websiteUri || location.micrositeUrl || location.websiteUrl || existingStore.microsite?.gmbUrl,
+            'microsite.mapsUrl': (location as any).metadata?.mapsUri || location.mapsUri, // Save Google Maps URL
+            // Save complete GMB metadata
+            'gmbData.metadata': {
+              categories: (location as any).categories?.additionalCategories || [],
+              websiteUrl: (location as any).websiteUri,
+              phoneNumber: (location as any).phoneNumbers?.primaryPhone,
+              businessStatus: (location as any).businessStatus || 'OPEN',
+              priceLevel: (location as any).priceLevel || 'PRICE_LEVEL_UNSPECIFIED',
+              primaryCategory: (location as any).categories?.primaryCategory?.displayName,
+              additionalCategories: (location as any).categories?.additionalCategories || [],
+              mapsUri: (location as any).metadata?.mapsUri || location.mapsUri // Save Google Maps URL
+            },
+            'gmbData.verified': location.verified || false,
+            'gmbData.lastSyncAt': new Date()
           },
           { new: true }
         )
@@ -158,20 +181,44 @@ export class GmbSyncService {
             storeCode: location.name.replace(/\s+/g, '-').toLowerCase(),
             slug: slug, // Use the unique slug we generated
             email: 'N/A',
-            phone: location.phoneNumber,
+            phone: (location as any).phoneNumbers?.primaryPhone || location.phoneNumber,
             address: {
-              line1: location.address.split(',')[0] || '',
-              city: location.address.split(',')[location.address.split(',').length - 2]?.trim() || '',
-              state: location.address.split(',')[location.address.split(',').length - 2]?.trim() || '',
-              postalCode: location.address.split(',').pop()?.trim() || '',
-              countryCode: 'IN'
+              line1: (location as any).storefrontAddress?.addressLines?.[0] || location.address?.split(',')[0] || '',
+              line2: (location as any).storefrontAddress?.addressLines?.slice(1).join(', ') || '',
+              locality: (location as any).storefrontAddress?.locality || location.address?.split(',')[location.address.split(',').length - 2]?.trim() || '',
+              city: (location as any).storefrontAddress?.locality || location.address?.split(',')[location.address.split(',').length - 2]?.trim() || '',
+              state: (location as any).storefrontAddress?.administrativeArea || location.address?.split(',')[location.address.split(',').length - 2]?.trim() || '',
+              postalCode: (location as any).storefrontAddress?.postalCode || location.address?.split(',').pop()?.trim() || '',
+              countryCode: (location as any).storefrontAddress?.regionCode || 'IN',
+              // Extract coordinates from GMB API response
+              latitude: (location as any).latlng?.latitude,
+              longitude: (location as any).latlng?.longitude
             },
-            primaryCategory: location.categories?.[0] || 'Business',
-            gmbLocationId: location.id,
+            primaryCategory: (location as any).categories?.primaryCategory?.displayName || location.categories?.[0] || 'Business',
+            additionalCategories: (location as any).categories?.additionalCategories || [],
+            gmbLocationId: location.name, // Use location.name as it contains the full GMB location path
             status: location.verified ? 'active' : 'draft',
+            verified: location.verified || false,
+            lastSyncAt: new Date(),
             // Add microsite URL from GMB (websiteUri from Business Information API)
             microsite: {
-              gmbUrl: location.micrositeUrl || location.websiteUrl
+              gmbUrl: (location as any).websiteUri || location.micrositeUrl || location.websiteUrl,
+              mapsUrl: (location as any).metadata?.mapsUri || location.mapsUri // Save Google Maps URL
+            },
+            // Save complete GMB metadata
+            gmbData: {
+              metadata: {
+                categories: (location as any).categories?.additionalCategories || [],
+                websiteUrl: (location as any).websiteUri,
+                phoneNumber: (location as any).phoneNumbers?.primaryPhone,
+                businessStatus: (location as any).businessStatus || 'OPEN',
+                priceLevel: (location as any).priceLevel || 'PRICE_LEVEL_UNSPECIFIED',
+                primaryCategory: (location as any).categories?.primaryCategory?.displayName,
+                additionalCategories: (location as any).categories?.additionalCategories || [],
+                mapsUri: (location as any).metadata?.mapsUri || location.mapsUri // Save Google Maps URL
+              },
+              verified: location.verified || false,
+              lastSyncAt: new Date()
             }
           })
           
@@ -203,7 +250,8 @@ export class GmbSyncService {
                 status: location.verified ? 'active' : 'draft',
                 // Add microsite URL from GMB (websiteUri from Business Information API)
                 microsite: {
-                  gmbUrl: location.micrositeUrl || location.websiteUrl
+                  gmbUrl: (location as any).websiteUri || location.micrositeUrl || location.websiteUrl,
+                  mapsUrl: (location as any).metadata?.mapsUri || location.mapsUri // Save Google Maps URL
                 }
               },
               { upsert: true, new: true }

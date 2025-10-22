@@ -20,6 +20,7 @@ import { LocationScoringTable } from "@/components/dashboard/location-scoring-ta
 import { KeywordAnalyticsCards } from "@/components/dashboard/keyword-analytics-cards"
 import { KeywordPerformanceTable } from "@/components/dashboard/keyword-performance-table"
 import { StorePerformanceTable } from "@/components/dashboard/store-performance-table"
+import { ImpressionAnalytics } from "@/components/dashboard/impression-analytics"
 import GlobalSyncStatus from "@/components/dashboard/global-sync-status"
 import { calculateVisibilityScore, extractMetricsFromGmbData, ScoringMetrics } from "@/lib/utils/scoring"
 import { formatLargeNumber, formatPercentage } from "@/lib/utils"
@@ -40,29 +41,37 @@ import {
 import { DateRangeFilter } from "@/components/dashboard/date-range-filter"
 
 export default function OverviewPage() {
-  // Simple date range filter state
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
+  // Date range filter state - using selected days
+  const [selectedDays, setSelectedDays] = useState<number>(30)
 
   // Debug logging for date range state
-  console.log('🔍 Overview Page - Date range state:', { startDate, endDate })
+  console.log('🔍 Overview Page - Date range state:', { selectedDays })
 
   // Get filter state from global store
   const { selectedStores } = useGmbStore()
 
-  // Simple date range filter handlers
-  const handleStartDateChange = (date: string) => {
-    setStartDate(date)
-  }
-
-  const handleEndDateChange = (date: string) => {
-    setEndDate(date)
+  // Date range filter handlers
+  const handleDaysChange = (days: number) => {
+    setSelectedDays(days)
   }
 
   const handleClearFilter = () => {
-    setStartDate("")
-    setEndDate("")
+    setSelectedDays(30) // Reset to default 30 days
   }
+
+  // Convert selected days to start/end dates for API calls
+  const getDateRange = () => {
+    const endDate = new Date()
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - selectedDays)
+    
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0]
+    }
+  }
+
+  const { startDate, endDate } = getDateRange()
 
   // Fetch stores from API (same as stores page)
   const { stores, isLoading: storesLoading, refresh: refreshStores, totalStores } = useStores({
@@ -90,9 +99,7 @@ export default function OverviewPage() {
   
   // Get accessible performance data with simplified filtering
   const performanceFilters = {
-    days: (!startDate && !endDate) ? 30 : undefined, // Default to 30 days if no custom date range
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
+    days: selectedDays, // Use selected days only
     status: 'active'
   }
   
@@ -107,9 +114,7 @@ export default function OverviewPage() {
   
   // Get location-specific performance data with simplified filtering
   const locationFilters = {
-    days: (!startDate && !endDate) ? 30 : undefined, // Default to 30 days if no custom date range
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
+    days: selectedDays, // Use selected days only
     status: 'active'
   }
   
@@ -294,21 +299,14 @@ export default function OverviewPage() {
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Local Store Analytics Dashboard</h1>
-          <p className="text-muted-foreground">
-            {finalIsConnected && finalAccount 
-              ? `${finalAccount.name} - ${totalLocations} locations connected` 
-              : 'Connect your GMB account to view real data'
-            }
-            {dbLoading && <span className="ml-2 text-sm text-blue-600">Loading database data...</span>}
-          </p>
         </div>
         <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
-          {/* <Button variant="outline" className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Store-wise Export
-          </Button> */}
-          
-          {/* <ImprovedGmbConnectButton compact /> */}
+          <DateRangeFilter
+            selectedDays={selectedDays}
+            onDaysChange={handleDaysChange}
+            onClear={handleClearFilter}
+            className="w-full sm:w-auto"
+          />
           <GmbConnectButton compact />
           <Button variant="outline" className="flex items-center gap-2" onClick={() => {
             refreshAll()
@@ -320,107 +318,110 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Store Filter */}
+      <div className="grid gap-4 md:grid-cols-1">
         <LocationFilter />
-        <DateRangeFilter
-          startDate={startDate}
-          endDate={endDate}
-          onStartDateChange={handleStartDateChange}
-          onEndDateChange={handleEndDateChange}
-          onClear={handleClearFilter}
-        />
-
       </div>
 
-      {/* Visibility Score Card */}
-      {finalIsConnected && (
-        <VisibilityScoreCard 
-          scoringDetails={overallScoringDetails} 
-          isLoading={dbLoading}
+      {/* Key Metrics */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Key Metrics
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <AnalyticsCard
+              title="Total Locations"
+              value={finalIsConnected ? totalLocations.toString() : "—"}
+              description={finalIsConnected ? (totalLocations > 0 ? "From database" : "No locations synced") : "Connect GMB to view data"}
+              icon={MousePointer}
+              isEmpty={!finalIsConnected || totalLocations === 0}
+            />
+            <AnalyticsCard
+              title="Total Views"
+              value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
+                (filteredPerformanceData.totalViews > 0 ? filteredPerformanceData.totalViews : 0) : 
+                "—"
+              }
+              description={performanceAccess ? 
+                (filteredPerformanceData && filteredPerformanceData.totalViews > 0 ? "From performance database" : "No performance data available") : 
+                "Connect GMB to view data"
+              }
+              icon={Eye}
+              isLoading={performanceLoading}
+              isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalViews || filteredPerformanceData.totalViews === 0))}
+            />
+            <AnalyticsCard
+              title="Website Clicks"
+              value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
+                (filteredPerformanceData.totalWebsiteClicks > 0 ? filteredPerformanceData.totalWebsiteClicks : 0) : 
+                "—"
+              }
+              description={performanceAccess ? 
+                (filteredPerformanceData && filteredPerformanceData.totalWebsiteClicks > 0 ? "From performance database" : "No website clicks data available") : 
+                "Connect GMB to view data"
+              }
+              icon={Globe}
+              isLoading={performanceLoading}
+              isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalWebsiteClicks || filteredPerformanceData.totalWebsiteClicks === 0))}
+            />
+            <AnalyticsCard
+              title="Call Clicks"
+              value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
+                (filteredPerformanceData.totalCallClicks > 0 ? filteredPerformanceData.totalCallClicks : 0) : 
+                "—"
+              }
+              description={performanceAccess ? 
+                (filteredPerformanceData && filteredPerformanceData.totalCallClicks > 0 ? "From performance database" : "No call data available") : 
+                "Connect GMB to view data"
+              }
+              icon={Phone}
+              isLoading={performanceLoading}
+              isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalCallClicks || filteredPerformanceData.totalCallClicks === 0))}
+            />
+            <AnalyticsCard
+              title="Direction Requests"
+              value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
+                (filteredPerformanceData.totalDirectionRequests > 0 ? filteredPerformanceData.totalDirectionRequests : 0) : 
+                "—"
+              }
+              description={performanceAccess ? 
+                (filteredPerformanceData && filteredPerformanceData.totalDirectionRequests > 0 ? "From performance database" : "No direction data available") : 
+                "Connect GMB to view data"
+              }
+              icon={Navigation}
+              isLoading={performanceLoading}
+              isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalDirectionRequests || filteredPerformanceData.totalDirectionRequests === 0))}
+            />
+            <AnalyticsCard
+              title="Total Actions"
+              value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
+                (filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests > 0 ? 
+                  (filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests) : 0) : 
+                "—"
+              }
+              description={performanceAccess ? 
+                (filteredPerformanceData && (filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests) > 0 ? "Calls + Website + Directions" : "No actions data available") : 
+                "Connect GMB to view data"
+              }
+              icon={TrendingUp}
+              isLoading={performanceLoading}
+              isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || (filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests) === 0))}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Impression Analytics */}
+      {finalIsConnected && performanceAccess && filteredStores.length > 0 && (
+        <ImpressionAnalytics 
+          accountId={filteredStores[0]?.accountId || ''} 
+          locationId={filteredStores[0]?.gmbLocationId || ''} 
         />
       )}
-
-      {/* Analytics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
-        <AnalyticsCard
-          title="Average Rating"
-          value={finalIsConnected ? (averageRating > 0 ? averageRating.toFixed(1) : "—") : "—"}
-          description={finalIsConnected ? (totalReviews > 0 ? `Across ${totalReviews} reviews` : "No reviews yet") : "Connect GMB to view data"}
-          icon={Star}
-          isEmpty={!finalIsConnected || averageRating === 0}
-        />
-        <AnalyticsCard
-          title="Total Reviews"
-          value={finalIsConnected ? totalReviews.toString() : "—"}
-          description={finalIsConnected ? (totalReviews > 0 ? "From database" : "No reviews synced yet") : "Connect GMB to view data"}
-          icon={MessageSquare}
-          isEmpty={!finalIsConnected || totalReviews === 0}
-        />
-        <AnalyticsCard
-          title="Total Locations"
-          value={finalIsConnected ? totalLocations.toString() : "—"}
-          description={finalIsConnected ? (totalLocations > 0 ? "From database" : "No locations synced") : "Connect GMB to view data"}
-          icon={MousePointer}
-          isEmpty={!finalIsConnected || totalLocations === 0}
-        />
-        <AnalyticsCard
-          title="Total Views"
-          value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
-            (filteredPerformanceData.totalViews > 0 ? filteredPerformanceData.totalViews : 0) : 
-            "—"
-          }
-          description={performanceAccess ? 
-            (filteredPerformanceData && filteredPerformanceData.totalViews > 0 ? "From performance database" : "No performance data available") : 
-            "Connect GMB to view data"
-          }
-          icon={Eye}
-          isLoading={performanceLoading}
-          isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalViews || filteredPerformanceData.totalViews === 0))}
-        />
-        <AnalyticsCard
-          title="Website Clicks"
-          value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
-            (filteredPerformanceData.totalWebsiteClicks > 0 ? filteredPerformanceData.totalWebsiteClicks : 0) : 
-            "—"
-          }
-          description={performanceAccess ? 
-            (filteredPerformanceData && filteredPerformanceData.totalWebsiteClicks > 0 ? "From performance database" : "No website clicks data available") : 
-            "Connect GMB to view data"
-          }
-          icon={Globe}
-          isLoading={performanceLoading}
-          isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalWebsiteClicks || filteredPerformanceData.totalWebsiteClicks === 0))}
-        />
-        <AnalyticsCard
-          title="Call Clicks"
-          value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
-            (filteredPerformanceData.totalCallClicks > 0 ? filteredPerformanceData.totalCallClicks : 0) : 
-            "—"
-          }
-          description={performanceAccess ? 
-            (filteredPerformanceData && filteredPerformanceData.totalCallClicks > 0 ? "From performance database" : "No call data available") : 
-            "Connect GMB to view data"
-          }
-          icon={Phone}
-          isLoading={performanceLoading}
-          isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalCallClicks || filteredPerformanceData.totalCallClicks === 0))}
-        />
-        <AnalyticsCard
-          title="Direction Requests"
-          value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
-            (filteredPerformanceData.totalDirectionRequests > 0 ? filteredPerformanceData.totalDirectionRequests : 0) : 
-            "—"
-          }
-          description={performanceAccess ? 
-            (filteredPerformanceData && filteredPerformanceData.totalDirectionRequests > 0 ? "From performance database" : "No direction data available") : 
-            "Connect GMB to view data"
-          }
-          icon={Navigation}
-          isLoading={performanceLoading}
-          isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalDirectionRequests || filteredPerformanceData.totalDirectionRequests === 0))}
-        />
-      </div>
 
       {/* Engagement Metrics */}
       <Card>
@@ -488,23 +489,21 @@ export default function OverviewPage() {
         </CardContent>
       </Card>
 
+      {/* Store Performance Data */}
+      {finalIsConnected && (
+        <StorePerformanceTable 
+          days={selectedDays}
+          status="active"
+          showFilters={true}
+          limit={5}
+          storeIds={selectedStores.includes("all") ? undefined : selectedStores}
+        />
+      )}
+
       {/* Keyword Analytics */}
       {finalIsConnected && (
         <KeywordAnalyticsCards 
           limit={5}
-        />
-      )}
-
-      {/* Store Performance Data */}
-      {finalIsConnected && (
-        <StorePerformanceTable 
-          days={(!startDate && !endDate) ? 30 : undefined}
-          startDate={startDate || undefined}
-          endDate={endDate || undefined}
-          status="active"
-          showFilters={true}
-          limit={20}
-          storeIds={selectedStores.includes("all") ? undefined : selectedStores}
         />
       )}
 

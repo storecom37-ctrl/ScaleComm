@@ -61,7 +61,7 @@ export function RatingDistribution({ totalReviews, averageRating, ratingDistribu
       <CardContent className="space-y-6">
         {/* Overall Rating */}
         <div className="text-center">
-          <div className="text-4xl font-bold mb-2">{averageRating.toFixed(1)}</div>
+          <div className={`text-4xl font-bold mb-2 ${averageRating >= 4 ? 'text-green-600' : averageRating >= 3 ? 'text-yellow-600' : 'text-red-600'}`}>{averageRating.toFixed(1)}</div>
           <div className="flex justify-center mb-2">
             {renderStars(Math.round(averageRating))}
           </div>
@@ -117,3 +117,5 @@ export function RatingDistribution({ totalReviews, averageRating, ratingDistribu
     </Card>
   )
 }
+
+

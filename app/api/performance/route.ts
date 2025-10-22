@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const brandId = searchParams.get('brandId')
     const accountId = searchParams.get('accountId')
     const periodType = searchParams.get('periodType')
+    const days = searchParams.get('days')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const limit = parseInt(searchParams.get('limit') || '100')
@@ -67,11 +68,47 @@ export async function GET(request: NextRequest) {
     
     console.log('🔍 Performance API - Query filters:', query)
     
+    // Debug: Check what performance data exists for different days
+    if (days) {
+      const debugQuery = { status, ...query }
+      const countByDays = await Performance.aggregate([
+        { $match: debugQuery },
+        { $group: { _id: '$period.dateRange.days', count: { $sum: 1 } } }
+      ])
+      console.log('🔍 Performance API - Data available by days:', countByDays)
+    }
+    
     if (periodType) query['period.periodType'] = periodType
     
-    // Date range filtering using period overlap logic
-    // Select records where (period.startTime <= endDate) AND (period.endTime >= startDate)
-    if (startDate && endDate) {
+    // Date range filtering - try exact days match first, fallback to date range
+    if (days) {
+      // First try to filter by the exact days value saved in the database
+      query['period.dateRange.days'] = parseInt(days)
+      
+      // Check if we have any data with this exact days value
+      const exactMatchCount = await Performance.countDocuments({ 
+        status, 
+        'period.dateRange.days': parseInt(days),
+        ...(storeId && storeId !== 'all' ? { storeId } : {}),
+        ...(brandId && brandId !== 'all' ? { brandId } : {}),
+        ...(accountId ? { accountId } : accessibleAccountIds.length > 0 ? { accountId: { $in: accessibleAccountIds } } : {})
+      })
+      
+      console.log(`🔍 Performance API - Exact match for ${days} days: ${exactMatchCount} records`)
+      
+      // If no exact match, fallback to date range filtering
+      if (exactMatchCount === 0) {
+        console.log(`🔍 Performance API - No exact match for ${days} days, falling back to date range filtering`)
+        delete query['period.dateRange.days']
+        
+        const endTime = new Date()
+        const startTime = new Date()
+        startTime.setDate(startTime.getDate() - parseInt(days))
+        
+        query['period.startTime'] = { $lte: endTime }
+        query['period.endTime'] = { $gte: startTime }
+      }
+    } else if (startDate && endDate) {
       const start = new Date(startDate)
       const end = new Date(endDate)
       query['period.startTime'] = { $lte: end }
@@ -169,22 +206,62 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        { $sort: { totalViews: -1 } },
+        { $sort: { totalViews: -1 as const } },
         { $skip: skip },
         { $limit: limit }
       ])
 
-      // Calculate overall aggregated metrics for store grouping
+      // Calculate overall aggregated metrics for store grouping with data sanitization
       const overallAggregation = await Performance.aggregate([
         { $match: query },
         {
+          $addFields: {
+            // Sanitize numeric fields to prevent astronomical values
+            sanitizedViews: {
+              $cond: {
+                if: { $and: [{ $gte: ['$views', 0] }, { $lte: ['$views', 1000000] }] },
+                then: '$views',
+                else: 0
+              }
+            },
+            sanitizedActions: {
+              $cond: {
+                if: { $and: [{ $gte: ['$actions', 0] }, { $lte: ['$actions', 1000000] }] },
+                then: '$actions',
+                else: 0
+              }
+            },
+            sanitizedCallClicks: {
+              $cond: {
+                if: { $and: [{ $gte: ['$callClicks', 0] }, { $lte: ['$callClicks', 1000000] }] },
+                then: '$callClicks',
+                else: 0
+              }
+            },
+            sanitizedWebsiteClicks: {
+              $cond: {
+                if: { $and: [{ $gte: ['$websiteClicks', 0] }, { $lte: ['$websiteClicks', 1000000] }] },
+                then: '$websiteClicks',
+                else: 0
+              }
+            },
+            sanitizedDirectionRequests: {
+              $cond: {
+                if: { $and: [{ $gte: ['$directionRequests', 0] }, { $lte: ['$directionRequests', 1000000] }] },
+                then: '$directionRequests',
+                else: 0
+              }
+            }
+          }
+        },
+        {
           $group: {
             _id: null,
-            totalViews: { $sum: '$views' },
-            totalActions: { $sum: '$actions' },
-            totalCallClicks: { $sum: '$callClicks' },
-            totalWebsiteClicks: { $sum: '$websiteClicks' },
-            totalDirectionRequests: { $sum: '$directionRequests' },
+            totalViews: { $sum: '$sanitizedViews' },
+            totalActions: { $sum: '$sanitizedActions' },
+            totalCallClicks: { $sum: '$sanitizedCallClicks' },
+            totalWebsiteClicks: { $sum: '$sanitizedWebsiteClicks' },
+            totalDirectionRequests: { $sum: '$sanitizedDirectionRequests' },
             averageConversionRate: { $avg: '$conversionRate' },
             averageClickThroughRate: { $avg: '$clickThroughRate' },
             uniqueStores: { $addToSet: '$storeId' },
@@ -231,16 +308,49 @@ export async function GET(request: NextRequest) {
     }
 
     // Default behavior - return individual performance records
-    // Calculate aggregated metrics
+    // Calculate aggregated metrics with data sanitization
     const aggregatedMetrics = await Performance.aggregate([
       { $match: query },
       {
+        $addFields: {
+          // Sanitize numeric fields to prevent astronomical values
+          sanitizedViews: {
+            $cond: {
+              if: { $and: [{ $gte: ['$views', 0] }, { $lte: ['$views', 1000000] }] },
+              then: '$views',
+              else: 0
+            }
+          },
+          sanitizedActions: {
+            $cond: {
+              if: { $and: [{ $gte: ['$actions', 0] }, { $lte: ['$actions', 1000000] }] },
+              then: '$actions',
+              else: 0
+            }
+          },
+          sanitizedCallClicks: {
+            $cond: {
+              if: { $and: [{ $gte: ['$callClicks', 0] }, { $lte: ['$callClicks', 1000000] }] },
+              then: '$callClicks',
+              else: 0
+            }
+          },
+          sanitizedWebsiteClicks: {
+            $cond: {
+              if: { $and: [{ $gte: ['$websiteClicks', 0] }, { $lte: ['$websiteClicks', 1000000] }] },
+              then: '$websiteClicks',
+              else: 0
+            }
+          }
+        }
+      },
+      {
         $group: {
           _id: null,
-          totalViews: { $sum: '$views' },
-          totalActions: { $sum: '$actions' },
-          totalCallClicks: { $sum: '$callClicks' },
-          totalWebsiteClicks: { $sum: '$websiteClicks' },
+          totalViews: { $sum: '$sanitizedViews' },
+          totalActions: { $sum: '$sanitizedActions' },
+          totalCallClicks: { $sum: '$sanitizedCallClicks' },
+          totalWebsiteClicks: { $sum: '$sanitizedWebsiteClicks' },
           averageConversionRate: { $avg: '$conversionRate' },
           averageClickThroughRate: { $avg: '$clickThroughRate' }
         }

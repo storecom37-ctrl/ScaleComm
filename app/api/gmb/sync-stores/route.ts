@@ -139,9 +139,25 @@ export async function POST(request: NextRequest) {
               gmbAccountId: account.name,
               status: 'active',
               lastSyncAt: new Date(),
-              // Save GMB websiteUri as microsite.gmbUrl
+              // Save GMB websiteUri as microsite.gmbUrl and mapsUrl
               microsite: {
-                gmbUrl: location.micrositeUrl || location.websiteUrl
+                gmbUrl: (location as any).websiteUri || location.micrositeUrl || location.websiteUrl,
+                mapsUrl: (location as any).metadata?.mapsUri || location.mapsUri // Save Google Maps URL
+              },
+              // Save complete GMB metadata including mapsUri
+              gmbData: {
+                metadata: {
+                  categories: (location as any).categories?.additionalCategories || [],
+                  websiteUrl: (location as any).websiteUri || location.websiteUrl,
+                  phoneNumber: (location as any).phoneNumbers?.primaryPhone || location.phoneNumber,
+                  businessStatus: (location as any).businessStatus || 'OPEN',
+                  priceLevel: (location as any).priceLevel || 'PRICE_LEVEL_UNSPECIFIED',
+                  primaryCategory: (location as any).categories?.primaryCategory?.displayName || location.categories?.[0],
+                  additionalCategories: (location as any).categories?.additionalCategories || [],
+                  mapsUri: (location as any).metadata?.mapsUri || location.mapsUri // Save Google Maps URL
+                },
+                verified: location.verified || false,
+                lastSyncAt: new Date()
               }
             }
 

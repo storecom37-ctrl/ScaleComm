@@ -13,7 +13,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Star, MessageSquare, User, MapPin, Calendar } from "lucide-react"
+import { Star, MessageSquare, User, MapPin, Calendar, Brain, Sparkles, RefreshCw } from "lucide-react"
 
 interface ReviewReplyModalProps {
   isOpen: boolean
@@ -40,6 +40,7 @@ export function ReviewReplyModal({
 }: ReviewReplyModalProps) {
   const [comment, setComment] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
 
   const handleSubmit = async () => {
     if (!comment.trim()) {
@@ -68,6 +69,41 @@ export function ReviewReplyModal({
   const handleClose = () => {
     setComment("")
     onClose()
+  }
+
+  const generateAIReply = async () => {
+    setIsGeneratingAI(true)
+    try {
+      const response = await fetch('/api/reviews/generate-reply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reviewText: review.review,
+          rating: review.rating,
+          customerName: review.customer,
+          storeName: review.store,
+          platform: review.platform
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate AI reply')
+      }
+
+      const data = await response.json()
+      if (data.success && data.reply) {
+        setComment(data.reply)
+      } else {
+        throw new Error(data.error || 'Failed to generate reply')
+      }
+    } catch (error) {
+      console.error('Error generating AI reply:', error)
+      alert('Failed to generate AI reply. Please try again or write manually.')
+    } finally {
+      setIsGeneratingAI(false)
+    }
   }
 
   const renderStars = (rating: number) => {
@@ -154,15 +190,7 @@ export function ReviewReplyModal({
           </div>
 
           {/* Tips */}
-          <div className="p-3 bg-blue-50 rounded-lg">
-            <h4 className="text-sm font-medium text-blue-900 mb-2">Reply Tips:</h4>
-            <ul className="text-xs text-blue-800 space-y-1">
-              <li>• Be professional and courteous</li>
-              <li>• Address any specific concerns mentioned</li>
-              <li>• Thank the customer for their feedback</li>
-              <li>• Keep it concise and relevant</li>
-            </ul>
-          </div>
+         
         </div>
 
         <DialogFooter>

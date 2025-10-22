@@ -83,6 +83,7 @@ interface StoreFormData {
   microsite: {
     tagline: string
     gmbUrl: string
+    mapsUrl: string
     heroImage: { url: string; key: string } | null
     existingImages: Array<{ url: string; key: string; caption: string }>
   }
@@ -150,6 +151,7 @@ const initialFormData: StoreFormData = {
   microsite: {
     tagline: "",
     gmbUrl: "",
+    mapsUrl: "",
     heroImage: null,
     existingImages: []
   },
@@ -171,8 +173,8 @@ const initialFormData: StoreFormData = {
 }
 
 interface StoreCreateModalProps {
-  onStoreCreated?: (store: any) => void
-  onStoreUpdated?: (store: any) => void
+  onStoreCreated?: (store: any, message?: string) => void
+  onStoreUpdated?: (store: any, message?: string) => void
   editStore?: any
   isOpen?: boolean
   onClose?: () => void
@@ -272,7 +274,25 @@ export default function StoreCreateModal({
 
   // Populate form data when editing
   useEffect(() => {
-    if (editStore) {      
+    if (editStore) {
+      // Find matching GMB category from primaryCategory
+      let matchedGmbCategoryId = editStore.gmbCategoryId || ''
+      let matchedGmbCategoryDisplayName = editStore.gmbCategoryDisplayName || editStore.primaryCategory || ''
+      
+      // If we have primaryCategory but no gmbCategoryId, try to find a match
+      if (!matchedGmbCategoryId && editStore.primaryCategory && gmbCategories.length > 0) {
+        const matchedCategory = gmbCategories.find(
+          cat => cat.label.toLowerCase() === editStore.primaryCategory.toLowerCase()
+        )
+        if (matchedCategory) {
+          matchedGmbCategoryId = matchedCategory.value
+          matchedGmbCategoryDisplayName = matchedCategory.label
+        } else {
+          // If no exact match, just use primaryCategory as displayName
+          matchedGmbCategoryDisplayName = editStore.primaryCategory
+        }
+      }
+      
       const newFormData = {
         brandId: editStore.brandId?._id || editStore.brandId || '',
         name: editStore.name || '',
@@ -292,6 +312,8 @@ export default function StoreCreateModal({
           longitude: editStore.address?.longitude || undefined
         },
         primaryCategory: editStore.primaryCategory || 'Business',
+        gmbCategoryId: matchedGmbCategoryId,
+        gmbCategoryDisplayName: matchedGmbCategoryDisplayName,
         additionalCategories: editStore.additionalCategories || [],
         tags: editStore.tags || [],
         hoursOfOperation: editStore.hoursOfOperation || initialFormData.hoursOfOperation,
@@ -301,7 +323,8 @@ export default function StoreCreateModal({
         },
         microsite: {
           tagline: editStore.microsite?.tagline || '',
-          gmbUrl: editStore.microsite?.gmbUrl || '',
+          gmbUrl: editStore.microsite?.gmbUrl || editStore.gmbData?.metadata?.websiteUrl || '',
+          mapsUrl: editStore.microsite?.mapsUrl || editStore.gmbData?.metadata?.mapsUri || '',
           heroImage: editStore.microsite?.heroImage || null,
           existingImages: editStore.microsite?.existingImages || []
         },
@@ -318,12 +341,17 @@ export default function StoreCreateModal({
           keywords: editStore.seo?.keywords || [editStore.primaryCategory || 'Business', editStore.address?.city || ''].filter(Boolean)
         },
         gmbLocationId: editStore.gmbLocationId || '',
-        gmbCategoryId: editStore.gmbCategoryId || '',
-        gmbCategoryDisplayName: editStore.gmbCategoryDisplayName || '',
         placeId: editStore.placeId || '',
         status: editStore.status || 'active'
       }
       
+      console.log('StoreCreateModal - EditStore data:', {
+        editStore: editStore,
+        microsite: editStore.microsite,
+        gmbUrl: editStore.microsite?.gmbUrl,
+        mapsUrl: editStore.microsite?.mapsUrl,
+        gmbData: editStore.gmbData
+      })
       console.log('StoreCreateModal - New form data:', newFormData)
       setFormData(newFormData)
       console.log('StoreCreateModal - Form data set successfully')
@@ -331,7 +359,7 @@ export default function StoreCreateModal({
       console.log('StoreCreateModal - No editStore, using initial form data')
       setFormData(initialFormData)
     }
-  }, [editStore])
+  }, [editStore, gmbCategories])
 
   const tabs = [
     { id: "details", label: "Details", icon: Building2 },
@@ -390,6 +418,7 @@ export default function StoreCreateModal({
       microsite: {
         tagline: "A short, catchy phrase for this location",
         gmbUrl: "https://www.colive.com/bangalore/pg-in-marathahalli/main-street-branch",
+        mapsUrl: "https://maps.google.com/maps?cid=12244601560303741346",
         heroImage: null,
         existingImages: []
       },
@@ -573,15 +602,40 @@ export default function StoreCreateModal({
           setErrors({})
         }
 
+        // Extract success message
+        const successMessage = result.message || (isEditMode ? 'Store updated successfully' : 'Store created successfully')
+        
         closeModal()
         
         if (isEditMode) {
-          onStoreUpdated?.(result.data)
+          onStoreUpdated?.(result.data, successMessage)
         } else {
-          onStoreCreated?.(result.data)
+          onStoreCreated?.(result.data, successMessage)
         }
       } else {
-        setErrors(prev => ({ ...prev, submit: result.error }))
+        // Process error message to make it more user-friendly
+        let errorMessage = result.error || 'An unexpected error occurred'
+        
+        // If it's a raw JSON error, try to extract meaningful information
+        if (errorMessage.includes('Failed to update GMB') && errorMessage.includes('HTTP error')) {
+          if (errorMessage.includes('THROTTLED')) {
+            errorMessage = 'Google My Business API rate limit exceeded. Please wait a moment and try again.'
+          } else if (errorMessage.includes('INVALID_CATEGORY')) {
+            errorMessage = 'Invalid business category. Please select a valid category from the list.'
+          } else if (errorMessage.includes('INVALID_PHONE_NUMBER')) {
+            errorMessage = 'Invalid phone number format. Please enter a valid phone number.'
+          } else if (errorMessage.includes('PIN_DROP_REQUIRED')) {
+            errorMessage = 'Address update requires location verification. Please contact support.'
+          } else if (errorMessage.includes('INVALID_ADDRESS')) {
+            errorMessage = 'Invalid address format. Please check your address details.'
+          } else if (errorMessage.includes('ADDRESS_EDIT_CHANGES_COUNTRY')) {
+            errorMessage = 'Cannot change country in address. Please contact support for country changes.'
+          } else {
+            errorMessage = 'Failed to update store in Google My Business. Please check your information and try again.'
+          }
+        }
+        
+        setErrors(prev => ({ ...prev, submit: errorMessage }))
       }
     } catch (error) {
       const errorMessage = isEditMode ? 'Failed to update store' : 'Failed to create store'
@@ -1053,6 +1107,41 @@ export default function StoreCreateModal({
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400">The specific location page URL from Google My Business</p>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mapsUrl" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    Google Maps URL
+                  </Label>
+                  <Input
+                    id="mapsUrl"
+                    value={formData.microsite.mapsUrl || ''}
+                    onChange={(e) => handleInputChange('microsite.mapsUrl', e.target.value)}
+                    placeholder="https://maps.google.com/maps?cid=12244601560303741346"
+                    className={`h-11 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400`}
+                  />
+        
+                  {/* Manual Sync Button */}
+                  {isEditMode && editStore && !formData.microsite.mapsUrl && (
+                    <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-xs text-yellow-700 font-medium mb-2">
+                        Maps URL not found in microsite, but may be available in GMB data:
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="text-xs h-8"
+                        onClick={() => {
+                          const gmbMapsUri = editStore.gmbData?.metadata?.mapsUri
+                          if (gmbMapsUri) {
+                            handleInputChange('microsite.mapsUrl', gmbMapsUri)
+                          }
+                        }}
+                      >
+                        Copy from GMB Data
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -1455,15 +1544,30 @@ export default function StoreCreateModal({
         {(errors.submit || errors.upload) && (
           <div className="px-3 sm:px-6 py-3 border-t bg-red-50/50 dark:bg-red-950/20">
             {errors.submit && (
-              <div className="flex items-center gap-2 p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <p className="text-sm text-red-700 dark:text-red-300 font-medium">{errors.submit}</p>
+              <div className="flex items-start gap-3 p-4 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="w-5 h-5 bg-red-500 rounded-full flex-shrink-0 mt-0.5"></div>
+                <div className="flex-1">
+                  <p className="text-sm text-red-700 dark:text-red-300 font-medium mb-1">
+                    {isEditMode ? 'Unable to update store' : 'Unable to create store'}
+                  </p>
+                  <p className="text-sm text-red-600 dark:text-red-400">{errors.submit}</p>
+                  {errors.submit.includes('Google My Business') && (
+                    <p className="text-xs text-red-500 dark:text-red-500 mt-2">
+                      💡 Tip: Make sure your store information meets Google My Business requirements.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
             {errors.upload && (
-              <div className="flex items-center gap-2 p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <p className="text-sm text-red-700 dark:text-red-300 font-medium">{errors.upload}</p>
+              <div className="flex items-start gap-3 p-4 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="w-5 h-5 bg-red-500 rounded-full flex-shrink-0 mt-0.5"></div>
+                <div className="flex-1">
+                  <p className="text-sm text-red-700 dark:text-red-300 font-medium mb-1">
+                    Upload Error
+                  </p>
+                  <p className="text-sm text-red-600 dark:text-red-400">{errors.upload}</p>
+                </div>
               </div>
             )}
           </div>

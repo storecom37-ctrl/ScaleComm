@@ -89,7 +89,8 @@ UserSchema.methods.comparePassword = async function(candidatePassword: string): 
   }
 }
 
-// Create indexes (email already has unique: true, so no need for explicit index)
+// Create indexes
+UserSchema.index({ email: 1 })
 UserSchema.index({ role: 1 })
 UserSchema.index({ brandId: 1 })
 UserSchema.index({ status: 1 })

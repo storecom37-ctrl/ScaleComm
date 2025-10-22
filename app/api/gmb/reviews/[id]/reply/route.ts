@@ -125,7 +125,7 @@ export async function POST(
     }
 
     // Update the review in database to mark as responded
-    await Review.findByIdAndUpdate(reviewMongoId, {
+    const updatedReview = await Review.findByIdAndUpdate(reviewMongoId, {
       hasResponse: true,
       response: {
         comment: comment,
@@ -133,7 +133,8 @@ export async function POST(
         respondedBy: 'gmb-api'
       },
       updatedAt: new Date()
-    })
+    }, { new: true })
+
 
     return NextResponse.json({
       success: true,

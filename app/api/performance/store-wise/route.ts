@@ -11,10 +11,10 @@ export async function GET(request: NextRequest) {
     const brandId = searchParams.get('brandId')
     const accountId = searchParams.get('accountId')
     const periodType = searchParams.get('periodType')
+    const days = searchParams.get('days')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
-    const days = searchParams.get('days')
-    const dateRange = searchParams.get('dateRange') // New parameter for specific date ranges (7, 30, 90, 180)
+    const dateRange = searchParams.get('dateRange') // New parameter for specific date ranges (7, 30, 60, 90)
     const status = searchParams.get('status') || 'active'
     const limit = parseInt(searchParams.get('limit') || '1000') // Higher default for comprehensive data
     
@@ -58,29 +58,70 @@ export async function GET(request: NextRequest) {
     
     console.log('🔍 Store-wise Performance API - Query filters:', query)
     
+    // Debug: Check what performance data exists in database
+    const allPerformanceData = await Performance.find({ status: 'active' }).limit(5)
+    console.log('🔍 Store-wise Performance API - Sample performance data:', allPerformanceData.map(p => ({
+      id: p._id,
+      storeId: p.storeId,
+      period: {
+        startTime: p.period?.startTime,
+        endTime: p.period?.endTime,
+        dateRange: p.period?.dateRange
+      },
+      views: p.views,
+      actions: p.actions
+    })))
+    
+    // Debug: Check what dateRange.days values exist
+    const daysDistribution = await Performance.aggregate([
+      { $match: { status: 'active' } },
+      { $group: { _id: '$period.dateRange.days', count: { $sum: 1 } } },
+      { $sort: { _id: 1 as const } }
+    ])
+    console.log('🔍 Store-wise Performance API - Days distribution:', daysDistribution)
+    
     if (periodType) query['period.periodType'] = periodType
     
-    // Date range filtering using period overlap logic
-    // Select records where (period.startTime <= endDate) AND (period.endTime >= startDate)
-    if (startDate && endDate) {
+    // Date range filtering - try exact days match first, fallback to date range
+    if (days) {
+      // First try to filter by the exact days value saved in the database
+      query['period.dateRange.days'] = parseInt(days)
+      
+      // Check if we have any data with this exact days value
+      const exactMatchCount = await Performance.countDocuments({ 
+        status: 'active', 
+        'period.dateRange.days': parseInt(days) 
+      })
+      
+      console.log(`🔍 Store-wise Performance API - Exact match for ${days} days: ${exactMatchCount} records`)
+      
+      // If no exact match, fallback to date range filtering
+      if (exactMatchCount === 0) {
+        console.log(`🔍 Store-wise Performance API - No exact match for ${days} days, falling back to date range filtering`)
+        delete query['period.dateRange.days']
+        
+        const endTime = new Date()
+        const startTime = new Date()
+        startTime.setDate(startTime.getDate() - parseInt(days))
+        
+        query['period.startTime'] = { $lte: endTime }
+        query['period.endTime'] = { $gte: startTime }
+      }
+    } else if (startDate && endDate) {
       const start = new Date(startDate)
       const end = new Date(endDate)
       query['period.startTime'] = { $lte: end }
       query['period.endTime'] = { $gte: start }
-    } else if (days) {
-      const endTime = new Date()
-      const startTime = new Date()
-      startTime.setDate(startTime.getDate() - parseInt(days))
-      
-      query['period.startTime'] = { $lte: endTime }
-      query['period.endTime'] = { $gte: startTime }
     } else if (dateRange) {
-      // Filter by specific date range (7, 30, 90, 180 days)
+      // Filter by specific date range (7, 30, 60, 90 days)
       const rangeDays = parseInt(dateRange)
       if (!isNaN(rangeDays)) {
         query['period.dateRange.days'] = rangeDays
       }
     }
+    
+    // Debug: Log the final query
+    console.log('🔍 Store-wise Performance API - Final query for aggregation:', JSON.stringify(query, null, 2))
     
     // Execute aggregation pipeline for store-wise analytics
     const storeWiseAggregation = await Performance.aggregate([
@@ -168,26 +209,101 @@ export async function GET(request: NextRequest) {
           },
         }
       },
-      { $sort: { totalViews: -1 } },
+      { $sort: { totalViews: -1 as const } },
       { $limit: limit }
     ])
     
-    // Calculate overall aggregated metrics
+    // Calculate overall aggregated metrics with data sanitization
     const overallAggregation = await Performance.aggregate([
       { $match: query },
       {
+        $addFields: {
+          // Sanitize numeric fields to prevent astronomical values
+          sanitizedViews: {
+            $cond: {
+              if: { $and: [{ $gte: ['$views', 0] }, { $lte: ['$views', 1000000] }] },
+              then: '$views',
+              else: 0
+            }
+          },
+          sanitizedActions: {
+            $cond: {
+              if: { $and: [{ $gte: ['$actions', 0] }, { $lte: ['$actions', 1000000] }] },
+              then: '$actions',
+              else: 0
+            }
+          },
+          sanitizedCallClicks: {
+            $cond: {
+              if: { $and: [{ $gte: ['$callClicks', 0] }, { $lte: ['$callClicks', 1000000] }] },
+              then: '$callClicks',
+              else: 0
+            }
+          },
+          sanitizedWebsiteClicks: {
+            $cond: {
+              if: { $and: [{ $gte: ['$websiteClicks', 0] }, { $lte: ['$websiteClicks', 1000000] }] },
+              then: '$websiteClicks',
+              else: 0
+            }
+          },
+          sanitizedDirectionRequests: {
+            $cond: {
+              if: { $and: [{ $gte: ['$directionRequests', 0] }, { $lte: ['$directionRequests', 1000000] }] },
+              then: '$directionRequests',
+              else: 0
+            }
+          },
+          sanitizedPhotoViews: {
+            $cond: {
+              if: { $and: [{ $gte: ['$photoViews', 0] }, { $lte: ['$photoViews', 1000000] }] },
+              then: '$photoViews',
+              else: 0
+            }
+          },
+          sanitizedQueries: {
+            $cond: {
+              if: { $and: [{ $gte: ['$queries', 0] }, { $lte: ['$queries', 1000000] }] },
+              then: '$queries',
+              else: 0
+            }
+          },
+          sanitizedMessages: {
+            $cond: {
+              if: { $and: [{ $gte: ['$businessMessages', 0] }, { $lte: ['$businessMessages', 1000000] }] },
+              then: '$businessMessages',
+              else: 0
+            }
+          },
+          sanitizedBookings: {
+            $cond: {
+              if: { $and: [{ $gte: ['$businessBookings', 0] }, { $lte: ['$businessBookings', 1000000] }] },
+              then: '$businessBookings',
+              else: 0
+            }
+          },
+          sanitizedFoodOrders: {
+            $cond: {
+              if: { $and: [{ $gte: ['$businessFoodOrders', 0] }, { $lte: ['$businessFoodOrders', 1000000] }] },
+              then: '$businessFoodOrders',
+              else: 0
+            }
+          }
+        }
+      },
+      {
         $group: {
           _id: null,
-          totalViews: { $sum: '$views' },
-          totalActions: { $sum: '$actions' },
-          totalCallClicks: { $sum: '$callClicks' },
-          totalWebsiteClicks: { $sum: '$websiteClicks' },
-          totalDirectionRequests: { $sum: '$directionRequests' },
-          totalPhotoViews: { $sum: '$photoViews' },
-          totalQueries: { $sum: '$queries' },
-          totalMessages: { $sum: '$businessMessages' },
-          totalBookings: { $sum: '$businessBookings' },
-          totalFoodOrders: { $sum: '$businessFoodOrders' },
+          totalViews: { $sum: '$sanitizedViews' },
+          totalActions: { $sum: '$sanitizedActions' },
+          totalCallClicks: { $sum: '$sanitizedCallClicks' },
+          totalWebsiteClicks: { $sum: '$sanitizedWebsiteClicks' },
+          totalDirectionRequests: { $sum: '$sanitizedDirectionRequests' },
+          totalPhotoViews: { $sum: '$sanitizedPhotoViews' },
+          totalQueries: { $sum: '$sanitizedQueries' },
+          totalMessages: { $sum: '$sanitizedMessages' },
+          totalBookings: { $sum: '$sanitizedBookings' },
+          totalFoodOrders: { $sum: '$sanitizedFoodOrders' },
           averageConversionRate: { $avg: '$conversionRate' },
           averageClickThroughRate: { $avg: '$clickThroughRate' },
           uniqueStores: { $addToSet: '$storeId' },

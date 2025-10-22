@@ -38,8 +38,11 @@ export function useLocationPerformanceData(filters: {
   // Build URL parameters
   const params = new URLSearchParams()
   if (filters.status) params.append('status', filters.status)
-  if (filters.days) params.append('days', filters.days.toString())
-  if (filters.startDate && filters.endDate) {
+  
+  // Handle date filtering - prioritize days parameter
+  if (filters.days) {
+    params.append('days', filters.days.toString())
+  } else if (filters.startDate && filters.endDate) {
     params.append('startDate', filters.startDate)
     params.append('endDate', filters.endDate)
   }

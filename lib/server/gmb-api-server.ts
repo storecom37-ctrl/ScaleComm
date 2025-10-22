@@ -10,7 +10,9 @@ export interface GmbLocation {
   websiteUrl?: string
   micrositeUrl?: string // Added for database compatibility
   categories: string[]
+  primaryCategory?: string
   verified: boolean
+  mapsUri?: string // Google Maps URL from metadata
   accountId: string
 }
 
@@ -19,12 +21,23 @@ export interface GmbReview {
   reviewer: {
     displayName: string
     profilePhotoUrl?: string
+    isAnonymous?: boolean
   }
   starRating: number
   comment?: string
   createTime: string
   updateTime: string
   locationId: string
+  reviewReply?: {
+    comment: string
+    updateTime: string
+  }
+  response?: {
+    comment: string
+    responseTime: string
+    respondedBy?: string
+  }
+  hasResponse?: boolean
 }
 
 export interface GmbPost {
@@ -86,6 +99,8 @@ export interface GmbInsights {
   businessFoodOrders: number
   businessMessages: number
   desktopSearchImpressions: number
+  mobileSearchImpressions: number
+  desktopMapsImpressions: number
   mobileMapsImpressions: number
   // Additional fields from new API
   dailyMetrics?: GmbDailyMetrics[]
@@ -390,6 +405,46 @@ export class GmbApiServerService {
     }
   }
 
+  /**
+   * Get a single location by its location name
+   */
+  async getLocation(locationName: string): Promise<any> {
+    try {
+      console.log(`Fetching single location: ${locationName}`)
+      
+      // Extract location ID from locationName format: accounts/{accountId}/locations/{locationId}
+      const pathParts = locationName.split('/')
+      if (pathParts.length !== 4 || pathParts[0] !== 'accounts' || pathParts[2] !== 'locations') {
+        throw new Error(`Invalid location name format: ${locationName}`)
+      }
+      
+      const locationId = pathParts[3]
+      const readMask = 'name,languageCode,storeCode,title,phoneNumbers,categories,storefrontAddress,websiteUri,regularHours,specialHours,serviceArea,labels,adWordsLocationExtensions,latlng,openInfo,metadata,profile,relationshipData,moreHours,serviceItems'
+      const url = `https://mybusinessbusinessinformation.googleapis.com/v1/locations/${locationId}?readMask=${readMask}`
+      
+      console.log(`Fetching location at: ${url}`)
+      
+      const response = await this.makeRequest(url, {
+        headers: {
+          'Authorization': `Bearer ${this.authClient.credentials.access_token}`
+        }
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('GMB Get Location API Error:', response.status, errorText)
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`)
+      }
+
+      const location = await response.json()
+      console.log(`Successfully fetched location: ${location.title}`)
+      return location
+    } catch (error) {
+      console.error('Error fetching location:', error)
+      throw error
+    }
+  }
+
   async getLocations(accountName: string): Promise<GmbLocation[]> {
     try {
       // Extract account ID from accountName (format: accounts/112022557985287772374)
@@ -432,6 +487,25 @@ export class GmbApiServerService {
         
         console.log(`📄 Page ${pageCount}: Fetched ${locations.length} locations (total: ${allLocations.length})`)
         
+        // Debug: Log metadata for first location to check mapsUri
+        if (locations.length > 0 && pageCount === 1) {
+          const firstLocation = locations[0]
+          console.log('🔍 DEBUG - Raw GMB API Response for first location:', {
+            name: firstLocation.title,
+            hasMetadata: !!firstLocation.metadata,
+            metadata: firstLocation.metadata,
+            mapsUri: firstLocation.metadata?.mapsUri,
+            allMetadataKeys: firstLocation.metadata ? Object.keys(firstLocation.metadata) : [],
+            fullLocationKeys: Object.keys(firstLocation),
+            // Check for alternative maps URL fields
+            hasMapsUrl: !!firstLocation.mapsUrl,
+            hasGoogleMapsUrl: !!firstLocation.googleMapsUrl,
+            hasPlaceId: !!firstLocation.placeId,
+            // Log the complete metadata object
+            completeMetadata: JSON.stringify(firstLocation.metadata, null, 2)
+          })
+        }
+        
         pageToken = data.nextPageToken
         
         if (pageToken) {
@@ -454,6 +528,8 @@ export class GmbApiServerService {
           id: fullLocationPath, // Use the full path format
           name: location.title || 'Unnamed Location',
           address: this.formatAddress(location.storefrontAddress),
+          // Return original address components for proper database storage
+          storefrontAddress: location.storefrontAddress,
           phoneNumber: location.phoneNumbers?.primaryPhone,
           websiteUrl: location.websiteUri,
           micrositeUrl: location.websiteUri, // Save websiteUri as micrositeUrl for database
@@ -462,6 +538,7 @@ export class GmbApiServerService {
           storeCode: location.storeCode,
           languageCode: location.languageCode,
           verified: location.metadata?.hasVoiceOfMerchant || false,
+          mapsUri: location.metadata?.mapsUri || this.constructMapsUrl(location), // Save Google Maps URL or construct it
           regularHours: location.regularHours,
           specialHours: location.specialHours,
           serviceArea: location.serviceArea,
@@ -474,10 +551,52 @@ export class GmbApiServerService {
           serviceItems: location.serviceItems,
           accountId: accountName
         }
+        
+        // Debug: Log the mapped location data for first location
+       
       })
     } catch (error) {
       console.error('Error fetching locations:', error)
       throw new Error('Failed to fetch locations')
+    }
+  }
+
+  // Helper method to construct Google Maps URL from available location data
+  private constructMapsUrl(location: any): string | null {
+    try {
+      // Try to construct from placeId if available
+      if (location.placeId) {
+        return `https://maps.google.com/maps/place/?q=place_id:${location.placeId}`
+      }
+      
+      // Try to construct from coordinates if available
+      if (location.latlng?.latitude && location.latlng?.longitude) {
+        return `https://maps.google.com/maps?q=${location.latlng.latitude},${location.latlng.longitude}`
+      }
+      
+      // Try to construct from address
+      if (location.storefrontAddress) {
+        const address = location.storefrontAddress.addressLines?.join(', ') || ''
+        const city = location.storefrontAddress.locality || ''
+        const state = location.storefrontAddress.administrativeArea || ''
+        const country = location.storefrontAddress.regionCode || ''
+        
+        if (address && city) {
+          const fullAddress = `${address}, ${city}, ${state}, ${country}`.trim()
+          return `https://maps.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`
+        }
+      }
+      
+      // Try to construct from name and address
+      if (location.title && location.storefrontAddress?.locality) {
+        const query = `${location.title}, ${location.storefrontAddress.locality}`
+        return `https://maps.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+      }
+      
+      return null
+    } catch (error) {
+      console.warn('Failed to construct maps URL:', error)
+      return null
     }
   }
 
@@ -622,7 +741,21 @@ export class GmbApiServerService {
       }
   
        // Map results to your GmbReview shape
+       console.log(`📝 Mapping ${reviews.length} reviews from GMB API...`)
+       
        const mappedReviews: GmbReview[] = reviews.map((review: any) => {
+         // Log each review's reply status
+         const hasReviewReply = !!review.reviewReply
+         const hasResponse = !!review.response
+         
+         if (hasReviewReply || hasResponse) {
+           console.log(`📋 Review ${review.reviewId} has reply:`, {
+             hasReviewReply,
+             hasResponse,
+             replyComment: (review.reviewReply || review.response)?.comment?.substring(0, 50)
+           })
+         }
+         
          // Convert Google's string star rating to number
          let numericRating = 0
          if (typeof review.starRating === 'string') {
@@ -638,26 +771,33 @@ export class GmbApiServerService {
            numericRating = review.starRating
          }
          
-         return {
-           id: review.name || `review-${Date.now()}-${Math.random()}`,
-           reviewer: {
-             displayName: review.reviewer?.displayName || 'Anonymous',
-             profilePhotoUrl: review.reviewer?.profilePhotoUrl,
-             isAnonymous: review.reviewer?.isAnonymous || false
-           },
-           starRating: numericRating,
-           comment: review.comment || '',
-           createTime: review.createTime,
-           updateTime: review.updateTime,
-           locationId: locationName,
-           // Include existing reply if present
-           response: review.response ? {
-             comment: review.response.comment,
-             responseTime: review.response.updateTime || review.response.createTime,
-             respondedBy: 'GMB'
-           } : undefined,
-           hasResponse: !!review.response
-         }
+          // Handle both reviewReply and response field names from GMB API
+          const replyData = review.reviewReply || review.response
+          
+          return {
+            id: review.name || `review-${Date.now()}-${Math.random()}`,
+            reviewer: {
+              displayName: review.reviewer?.displayName || 'Anonymous',
+              profilePhotoUrl: review.reviewer?.profilePhotoUrl,
+              isAnonymous: review.reviewer?.isAnonymous || false
+            },
+            starRating: numericRating,
+            comment: review.comment || '',
+            createTime: review.createTime,
+            updateTime: review.updateTime,
+            locationId: locationName,
+            // Include existing reply if present (handles both reviewReply and response)
+            reviewReply: replyData ? {
+              comment: replyData.comment,
+              updateTime: replyData.updateTime || replyData.createTime
+            } : undefined,
+            response: replyData ? {
+              comment: replyData.comment,
+              responseTime: replyData.updateTime || replyData.createTime,
+              respondedBy: 'GMB'
+            } : undefined,
+            hasResponse: !!replyData
+          }
        })
   
       console.log(`GMB API: Successfully returned ${mappedReviews.length} mapped reviews from ${successfulEndpoint}`)
@@ -1105,6 +1245,8 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
         'CALL_CLICKS', 
         'BUSINESS_DIRECTION_REQUESTS',
         'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH', 
+        'BUSINESS_IMPRESSIONS_MOBILE_SEARCH',
+        'BUSINESS_IMPRESSIONS_DESKTOP_MAPS',
         'BUSINESS_IMPRESSIONS_MOBILE_MAPS'
       ]
       dailyMetrics = await this.getMultiDailyMetricsTimeSeries(locationName, coreMetrics, startDateObj, endDateObj)
@@ -1120,11 +1262,13 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
         callClicksSeries = await this.getDailyMetricsTimeSeries(locationName, 'CALL_CLICKS', startDateObj, endDateObj)
         const directionRequestsSeries = await this.getDailyMetricsTimeSeries(locationName, 'BUSINESS_DIRECTION_REQUESTS', startDateObj, endDateObj)
         desktopSearchImpressionsSeries = await this.getDailyMetricsTimeSeries(locationName, 'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH', startDateObj, endDateObj)
+        const mobileSearchImpressionsSeries = await this.getDailyMetricsTimeSeries(locationName, 'BUSINESS_IMPRESSIONS_MOBILE_SEARCH', startDateObj, endDateObj)
+        const desktopMapsImpressionsSeries = await this.getDailyMetricsTimeSeries(locationName, 'BUSINESS_IMPRESSIONS_DESKTOP_MAPS', startDateObj, endDateObj)
         mobileMapsImpressionsSeries = await this.getDailyMetricsTimeSeries(locationName, 'BUSINESS_IMPRESSIONS_MOBILE_MAPS', startDateObj, endDateObj)
         
         
         // Convert time series to daily metrics format
-        if (websiteClicksSeries || callClicksSeries || directionRequestsSeries || desktopSearchImpressionsSeries || mobileMapsImpressionsSeries) {
+        if (websiteClicksSeries || callClicksSeries || directionRequestsSeries || desktopSearchImpressionsSeries || mobileSearchImpressionsSeries || desktopMapsImpressionsSeries || mobileMapsImpressionsSeries) {
           const dateMap = new Map<string, any>()
           
           websiteClicksSeries?.dailyValues.forEach(dv => {
@@ -1175,6 +1319,30 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
             dateMap.get(key)!.metrics.desktopSearchImpressions = dv.value
           })
 
+          mobileSearchImpressionsSeries?.dailyValues.forEach(dv => {
+            const key = `${dv.date.year}-${dv.date.month}-${dv.date.day}`
+            if (!dateMap.has(key)) {
+              dateMap.set(key, {
+                locationId: locationName,
+                date: dv.date,
+                metrics: {}
+              })
+            }
+            dateMap.get(key)!.metrics.mobileSearchImpressions = dv.value
+          })
+
+          desktopMapsImpressionsSeries?.dailyValues.forEach(dv => {
+            const key = `${dv.date.year}-${dv.date.month}-${dv.date.day}`
+            if (!dateMap.has(key)) {
+              dateMap.set(key, {
+                locationId: locationName,
+                date: dv.date,
+                metrics: {}
+              })
+            }
+            dateMap.get(key)!.metrics.desktopMapsImpressions = dv.value
+          })
+
           mobileMapsImpressionsSeries?.dailyValues.forEach(dv => {
             const key = `${dv.date.year}-${dv.date.month}-${dv.date.day}`
             if (!dateMap.has(key)) {
@@ -1212,8 +1380,10 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
         businessBookings: 0,
         businessFoodOrders: 0,
         businessMessages: 0,
-        desktopSearchImpressions: 0,
-        mobileMapsImpressions: 0,
+      desktopSearchImpressions: 0,
+      mobileSearchImpressions: 0,
+      desktopMapsImpressions: 0,
+      mobileMapsImpressions: 0,
         dailyMetrics: [],
         websiteClicksSeries: null,
         callClicksSeries: null
@@ -1225,18 +1395,28 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
     let totalCallClicks = 0
     let totalDirectionRequests = 0
     let totalDesktopSearchImpressions = 0
+    let totalMobileSearchImpressions = 0
+    let totalDesktopMapsImpressions = 0
     let totalMobileMapsImpressions = 0
 
     dailyMetrics.forEach(metric => {
-      totalWebsiteClicks += metric.metrics.websiteClicks || 0
-      totalCallClicks += metric.metrics.callClicks || 0
-      totalDirectionRequests += metric.metrics.directionRequests || 0
-      totalDesktopSearchImpressions += metric.metrics.desktopSearchImpressions || 0
-      totalMobileMapsImpressions += metric.metrics.mobileMapsImpressions || 0
+      // Safely add values, filtering out NaN and astronomical numbers
+      const safeAdd = (current: number, value: any) => {
+        const num = Number(value) || 0
+        return (isNaN(num) || num < 0 || num > 1000000) ? current : current + num
+      }
+      
+      totalWebsiteClicks = safeAdd(totalWebsiteClicks, metric.metrics.websiteClicks)
+      totalCallClicks = safeAdd(totalCallClicks, metric.metrics.callClicks)
+      totalDirectionRequests = safeAdd(totalDirectionRequests, metric.metrics.directionRequests)
+      totalDesktopSearchImpressions = safeAdd(totalDesktopSearchImpressions, metric.metrics.desktopSearchImpressions)
+      totalMobileSearchImpressions = safeAdd(totalMobileSearchImpressions, metric.metrics.mobileSearchImpressions)
+      totalDesktopMapsImpressions = safeAdd(totalDesktopMapsImpressions, metric.metrics.desktopMapsImpressions)
+      totalMobileMapsImpressions = safeAdd(totalMobileMapsImpressions, metric.metrics.mobileMapsImpressions)
     })
 
     // Calculate total views from impressions
-    const totalViews = totalDesktopSearchImpressions + totalMobileMapsImpressions
+    const totalViews = totalDesktopSearchImpressions + totalMobileSearchImpressions + totalDesktopMapsImpressions + totalMobileMapsImpressions
 
     // Create insights object with new API data
     const insights: GmbInsights = {
@@ -1256,6 +1436,8 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
       businessFoodOrders: 0, // Not available in current API
       businessMessages: 0, // Not available in current API
       desktopSearchImpressions: totalDesktopSearchImpressions,
+      mobileSearchImpressions: totalMobileSearchImpressions,
+      desktopMapsImpressions: totalDesktopMapsImpressions,
       mobileMapsImpressions: totalMobileMapsImpressions,
       // Include raw data for debugging
       dailyMetrics,
@@ -1268,6 +1450,8 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
       websiteClicks: totalWebsiteClicks,
       callClicks: totalCallClicks,
       desktopSearchImpressions: totalDesktopSearchImpressions,
+      mobileSearchImpressions: totalMobileSearchImpressions,
+      desktopMapsImpressions: totalDesktopMapsImpressions,
       mobileMapsImpressions: totalMobileMapsImpressions
     })
 
@@ -1292,6 +1476,8 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
       businessFoodOrders: 0,
       businessMessages: 0,
       desktopSearchImpressions: 0,
+      mobileSearchImpressions: 0,
+      desktopMapsImpressions: 0,
       mobileMapsImpressions: 0,
       dailyMetrics: [],
       websiteClicksSeries: null,
@@ -1567,6 +1753,16 @@ async getMultiDailyMetricsTimeSeries(
           validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH')
         }
         
+        if (errorText.includes('BUSINESS_IMPRESSIONS_MOBILE_SEARCH')) {
+          console.log('Removing BUSINESS_IMPRESSIONS_MOBILE_SEARCH metric...')
+          validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_MOBILE_SEARCH')
+        }
+        
+        if (errorText.includes('BUSINESS_IMPRESSIONS_DESKTOP_MAPS')) {
+          console.log('Removing BUSINESS_IMPRESSIONS_DESKTOP_MAPS metric...')
+          validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_DESKTOP_MAPS')
+        }
+        
         if (errorText.includes('BUSINESS_IMPRESSIONS_MOBILE_MAPS')) {
           console.log('Removing BUSINESS_IMPRESSIONS_MOBILE_MAPS metric...')
           validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_MOBILE_MAPS')
@@ -1618,8 +1814,17 @@ async getMultiDailyMetricsTimeSeries(
                 
                 const dailyMetric = metricsMap.get(dateKey)!
                 const metricKey = this.mapMetricTypeToKey(metricType)
-                // Convert string values to numbers, handle empty values
-                const value = datedValue.value ? parseInt(datedValue.value) || 0 : 0
+                // Convert string values to numbers, handle empty values and invalid numbers
+                let value = 0
+                if (datedValue.value) {
+                  const parsed = parseInt(datedValue.value)
+                  // Check for valid number and reasonable range (prevent astronomical values)
+                  if (!isNaN(parsed) && parsed >= 0 && parsed <= 1000000) {
+                    value = parsed
+                  } else {
+                    console.warn(`Invalid or out-of-range value for ${metricType}: ${datedValue.value}, using 0`)
+                  }
+                }
                 dailyMetric.metrics[metricKey] = value
               }
             }
@@ -1802,6 +2007,8 @@ private mapMetricTypeToKey(metricType: string): string {
     'BUSINESS_FOOD_ORDERS': 'businessFoodOrders',
     'BUSINESS_MESSAGES': 'businessMessages',
     'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH': 'desktopSearchImpressions',
+    'BUSINESS_IMPRESSIONS_MOBILE_SEARCH': 'mobileSearchImpressions',
+    'BUSINESS_IMPRESSIONS_DESKTOP_MAPS': 'desktopMapsImpressions',
     'BUSINESS_IMPRESSIONS_MOBILE_MAPS': 'mobileMapsImpressions'
   }
   
@@ -1893,6 +2100,8 @@ private mapMetricTypeToKey(metricType: string): string {
 
   /**
    * Update an existing location in GMB
+   * Note: Latitude/longitude coordinates cannot be updated via GMB API
+   * They are set automatically by Google based on address or through verification
    */
   async updateLocation(locationName: string, locationData: {
     title?: string
@@ -1909,27 +2118,33 @@ private mapMetricTypeToKey(metricType: string): string {
     websiteUri?: string
     categories?: {
       primaryCategory: {
-        displayName: string
+        name: string // GMB category ID like "gcid:apartment_building"
       }
     }
   }): Promise<GmbLocation | null> {
     try {
       console.log(`Updating location: ${locationName}`)
       
-      // Extract account ID and location ID from locationName
+      // Validate location name format and extract location ID
       const pathParts = locationName.split('/')
       if (pathParts.length !== 4 || pathParts[0] !== 'accounts' || pathParts[2] !== 'locations') {
         console.error(`Invalid location name format: ${locationName}`)
         return null
       }
       
-      const accountId = pathParts[1]
       const locationId = pathParts[3]
       
-      const updateLocationUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${accountId}/locations/${locationId}`
+      // Use the correct API format: locations/{locationId}
+      const updateLocationUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/locations/${locationId}`
       console.log(`Updating location at: ${updateLocationUrl}`)
       
-      const response = await this.makeRequest(updateLocationUrl, {
+      // Build update mask for fields being updated
+      const updateMask = Object.keys(locationData).join(',')
+      const urlWithMask = `${updateLocationUrl}?updateMask=${updateMask}`
+      
+      console.log('Update data:', JSON.stringify(locationData, null, 2))
+      
+      const response = await this.makeRequest(urlWithMask, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${this.authClient.credentials.access_token}`,
@@ -1941,11 +2156,54 @@ private mapMetricTypeToKey(metricType: string): string {
       if (!response.ok) {
         const errorText = await response.text()
         console.error(`GMB Update Location API Error:`, response.status, errorText)
-        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`)
+        
+        // Parse GMB API errors for better error messages
+        try {
+          const errorData = JSON.parse(errorText)
+          console.log('Parsed error data:', errorData)
+          
+          if (errorData.error && errorData.error.details && Array.isArray(errorData.error.details)) {
+            const reasons = errorData.error.details.map((detail: any) => detail.reason).filter(Boolean)
+            console.log('Error reasons:', reasons)
+            
+            if (reasons.includes('THROTTLED')) {
+              throw new Error('Google My Business API rate limit exceeded. Please wait a moment and try again.')
+            } else if (reasons.includes('PIN_DROP_REQUIRED')) {
+              throw new Error('Address update requires location verification. Please contact support.')
+            } else if (reasons.includes('INVALID_ADDRESS')) {
+              throw new Error('Invalid address format. Please check your address details.')
+            } else if (reasons.includes('ADDRESS_EDIT_CHANGES_COUNTRY')) {
+              throw new Error('Cannot change country in address. Please contact support for country changes.')
+            } else if (reasons.includes('INVALID_CATEGORY')) {
+              throw new Error('Invalid business category. Please select a valid category from the list.')
+            } else if (reasons.includes('INVALID_PHONE_NUMBER')) {
+              // Extract the phone number value from error details for better error message
+              const phoneError = errorData.error.details.find((d: any) => d.reason === 'INVALID_PHONE_NUMBER')
+              const phoneValue = phoneError?.metadata?.value || ''
+              throw new Error(`Invalid phone number: ${phoneValue}. This phone number cannot be verified by Google. Please ensure it's a valid, active phone number.`)
+            } else if (reasons.includes('INVALID_ARGUMENT')) {
+              throw new Error('Invalid store information provided. Please check your details and try again.')
+            } else {
+              throw new Error('Failed to update store in Google My Business. Please check your information and try again.')
+            }
+          } else {
+            throw new Error('Failed to update store in Google My Business. Please check your information and try again.')
+          }
+        } catch (parseError) {
+          console.error('Error parsing GMB response:', parseError)
+          console.error('Raw error text:', errorText)
+          // If we can't parse the error, use a generic message
+          throw new Error(`Failed to update store in Google My Business. Please check your information and try again.`)
+        }
+        
+        throw new Error(`Failed to update store in Google My Business. Please check your information and try again.`)
       }
 
       const data = await response.json()
       console.log(`GMB Update Location Response:`, JSON.stringify(data, null, 2))
+      
+      // Extract account ID from location name for the response
+      const accountId = pathParts[1]
       
       return {
         id: locationName,
@@ -1953,7 +2211,8 @@ private mapMetricTypeToKey(metricType: string): string {
         address: this.formatAddress(data.storefrontAddress || locationData.storefrontAddress),
         phoneNumber: data.phoneNumbers?.primaryPhone || locationData.phoneNumbers?.primaryPhone,
         websiteUrl: data.websiteUri || locationData.websiteUri,
-        categories: data.categories?.primaryCategory ? [data.categories.primaryCategory.displayName] : (locationData.categories?.primaryCategory ? [locationData.categories.primaryCategory.displayName] : []),
+        categories: data.categories?.primaryCategory ? [data.categories.primaryCategory.displayName] : [],
+        primaryCategory: data.categories?.primaryCategory?.displayName,
         verified: data.metadata?.hasVoiceOfMerchant || false,
         accountId: `accounts/${accountId}`
       }
@@ -2080,8 +2339,8 @@ private mapMetricTypeToKey(metricType: string): string {
 
       const data = await response.json();
 
-      console.log('Verification options fetched successfully:', data || response)
-      return response
+      console.log('Verification options fetched successfully:', data)
+      return data
     } catch (error) {
       console.error('Error fetching verification options:', error)
       throw error
@@ -2096,7 +2355,7 @@ private mapMetricTypeToKey(metricType: string): string {
   async startVerification(locationName: string, verificationOptions: any): Promise<any> {
     try {
       console.log(`Starting verification for location: ${locationName}`)
-      console.log('Verification options:', verificationOptions)
+      console.log('Verification options being sent to API:', JSON.stringify(verificationOptions, null, 2))
       
       // Extract just the location ID for the Verifications API
       // The Verifications API uses locations/{locationId} format, not accounts/{accountId}/locations/{locationId}
@@ -2106,6 +2365,17 @@ private mapMetricTypeToKey(metricType: string): string {
       }
       const locationId = pathParts[3]
       const verificationUrl = `https://mybusinessverifications.googleapis.com/v1/locations/${locationId}:verify`
+
+      // Clean up verification options - ensure languageCode and clean phone number
+      if (verificationOptions.phoneNumber) {
+        verificationOptions.phoneNumber = verificationOptions.phoneNumber.replace(/\s+/g, '')
+      }
+      if (!verificationOptions.languageCode) {
+        verificationOptions.languageCode = 'en-US'
+      }
+      
+      console.log('Verification URL:', verificationUrl)
+      console.log('Cleaned verification options:', verificationOptions)
       
       const response = await this.makeRequest(verificationUrl, {
         method: 'POST',
@@ -2116,8 +2386,18 @@ private mapMetricTypeToKey(metricType: string): string {
         body: JSON.stringify(verificationOptions)
       })
 
-      console.log('Verification started successfully:', response)
-      return response
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error(`Verification start API error: ${response.status}`, errorData)
+        
+        // Extract user-friendly error message from Google API response
+        const errorMessage = errorData?.error?.message || 'Failed to start verification process'
+        throw new Error(errorMessage)
+      }
+
+      const data = await response.json()
+      console.log('Verification started successfully:', data)
+      return data
     } catch (error) {
       console.error('Error starting verification:', error)
       throw error
@@ -2145,8 +2425,9 @@ private mapMetricTypeToKey(metricType: string): string {
         body: JSON.stringify(completionDetails)
       })
 
-      console.log('Verification completed successfully:', response)
-      return response
+      const data = await response.json()
+      console.log('Verification completed successfully:', data)
+      return data
     } catch (error) {
       console.error('Error completing verification:', error)
       throw error
@@ -2205,8 +2486,9 @@ private mapMetricTypeToKey(metricType: string): string {
         }
       })
 
-      console.log('Verifications listed successfully:', response)
-      return response
+      const data = await response.json()
+      console.log('Verifications listed successfully:', data)
+      return data
     } catch (error) {
       console.error('Error listing verifications:', error)
       throw error
@@ -2238,8 +2520,9 @@ private mapMetricTypeToKey(metricType: string): string {
         }
       })
 
-      console.log('Voice of Merchant state retrieved successfully:', response)
-      return response
+      const data = await response.json()
+      console.log('Voice of Merchant state retrieved successfully:', data)
+      return data
     } catch (error) {
       console.error('Error getting Voice of Merchant state:', error)
       throw error

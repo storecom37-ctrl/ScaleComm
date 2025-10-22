@@ -98,6 +98,11 @@ export default function StoresPage() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [selectedStore, setSelectedStore] = useState<any>(null)
   
+  // Toast notification state
+  const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState('')
+  const [toastType, setToastType] = useState<'success' | 'error'>('success')
+  
   // Debug selectedStore changes
   useEffect(() => {
     console.log('Stores Page - selectedStore changed:', selectedStore)
@@ -107,6 +112,16 @@ export default function StoresPage() {
   useEffect(() => {
     console.log('Stores Page - editModalOpen changed:', editModalOpen)
   }, [editModalOpen])
+  
+  // Auto-hide toast after 5 seconds
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => {
+        setShowToast(false)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [showToast])
   
   // Get GMB data for reviews only
   const {
@@ -194,14 +209,28 @@ export default function StoresPage() {
     }
   }
 
-  const handleStoreCreated = (store: any) => {
+  const handleStoreCreated = (store: any, message?: string) => {
     refreshStores()
+    
+    // Show success toast
+    if (message) {
+      setToastMessage(message)
+      setToastType('success')
+      setShowToast(true)
+    }
   }
 
-  const handleStoreUpdated = (store: any) => {
+  const handleStoreUpdated = (store: any, message?: string) => {
     refreshStores()
     setEditModalOpen(false)
     setSelectedStore(null)
+    
+    // Show success toast
+    if (message) {
+      setToastMessage(message)
+      setToastType('success')
+      setShowToast(true)
+    }
   }
 
   const transformGMBStoreToEditFormat = (store: any) => {
@@ -257,7 +286,8 @@ export default function StoresPage() {
       },
       microsite: {
         tagline: store.microsite?.tagline || '',
-        gmbUrl: store.website && store.website !== 'N/A' ? store.website : '',
+        gmbUrl: store.microsite?.gmbUrl || store.website || '',
+        mapsUrl: store.microsite?.mapsUrl || store.gmbData?.metadata?.mapsUri || '',
         heroImage: store.microsite?.heroImage || null,
         existingImages: store.microsite?.existingImages || []
       },
@@ -284,7 +314,12 @@ export default function StoresPage() {
       gmbLocationId: transformedData.gmbLocationId,
       originalStoreId: store._id || store.id,
       originalGmbLocationId: store.gmbLocationId,
-      originalId: store.id
+      originalId: store.id,
+      micrositeData: {
+        original: store.microsite,
+        transformed: transformedData.microsite,
+        gmbData: store.gmbData?.metadata
+      }
     })
     return transformedData
   }
@@ -1136,19 +1171,33 @@ export default function StoresPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleMicrositeView(store)}
+                            className="flex items-center gap-2 text-blue-600 hover:text-blue-800 w-fit font-medium"
+                          >
+                            <Globe className="h-4 w-4" />
+                            View Microsite
+                          </Button>
+
+                        </div>
+                      ) : store.brandId && store.slug ? (
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const brandSlug = typeof store.brandId === 'object' ? store.brandId.slug : store.brandId
+                              window.open(`/${brandSlug}/stores/${store.slug}`, '_blank')
+                            }}
                             className="flex items-center gap-2 text-blue-600 hover:text-blue-800 w-fit"
                           >
-                            <ExternalLink className="h-4 w-4" />
-                            View Site
+                            <Globe className="h-4 w-4" />
+                            View Microsite
                           </Button>
                         </div>
                       ) : (
                         <div className="flex flex-col gap-1">
                           <span className="text-gray-400 text-sm">No microsite</span>
                           {store.gmbConnected && (
-                            <span className="text-xs text-blue-600">
-                              GMB Location
-                            </span>
+                            <span className="text-xs text-blue-600">GMB Location</span>
                           )}
                         </div>
                       )}
@@ -1162,22 +1211,42 @@ export default function StoresPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          
+                          {/* Priority 1: GMB Microsite URL (if exists) */}
                           {getMicrositeUrl(store) && (
                             <DropdownMenuItem onClick={() => handleMicrositeView(store)}>
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              View Microsite
+                              <Globe className="mr-2 h-4 w-4" />
+                              <span className="text-orange-600 font-medium">GMB Microsite</span>
                             </DropdownMenuItem>
                           )}
-                          {store.brandId && store.slug && (
-                            <DropdownMenuItem onClick={() => window.open(`http://localhost:3001/${store.brandId.slug}/stores/${store.slug}`, '_blank')}>
+                          
+                          {/* Priority 2: Dashboard Microsite (if GMB doesn't exist but has brand+slug) */}
+                          {!getMicrositeUrl(store) && store.brandId && store.slug && (
+                            <DropdownMenuItem onClick={() => {
+                              const brandSlug = typeof store.brandId === 'object' ? store.brandId.slug : store.brandId
+                              window.open(`/${brandSlug}/stores/${store.slug}`, '_blank')
+                            }}>
                               <ExternalLink className="mr-2 h-4 w-4" />
-                              <span className="text-green-600">Our Microsite</span>
+                              <span className="text-blue-600 font-medium">View Store Microsite</span>
                             </DropdownMenuItem>
                           )}
-                          {store.microsite?.gmbUrl && (
+                          
+                          {/* Alternative: Dashboard Microsite (if GMB exists, show as secondary option) */}
+                          {getMicrositeUrl(store) && store.brandId && store.slug && (
+                            <DropdownMenuItem onClick={() => {
+                              const brandSlug = typeof store.brandId === 'object' ? store.brandId.slug : store.brandId
+                              window.open(`/${brandSlug}/stores/${store.slug}`, '_blank')
+                            }}>
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              <span className="text-blue-600">Dashboard Microsite</span>
+                            </DropdownMenuItem>
+                          )}
+                          
+                          {/* GMB Profile URL (if different from microsite) */}
+                          {store.microsite?.gmbUrl && store.microsite.gmbUrl !== getMicrositeUrl(store) && (
                             <DropdownMenuItem onClick={() => window.open(store.microsite.gmbUrl, '_blank')}>
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              <span className="text-orange-600">GMB URL</span>
+                              <Globe className="mr-2 h-4 w-4" />
+                              <span className="text-gray-600">Google Business Profile</span>
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem onClick={() => handleStoreView(store)}>
@@ -1301,6 +1370,38 @@ export default function StoresPage() {
           store={selectedStoreForVerification}
           onVerificationComplete={handleVerificationComplete}
         />
+      )}
+
+      {/* Success Toast Notification */}
+      {showToast && (
+        <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-5">
+          <div className={`flex items-center gap-3 rounded-lg px-4 py-3 shadow-lg ${
+            toastType === 'success' 
+              ? 'bg-green-50 border border-green-200' 
+              : 'bg-red-50 border border-red-200'
+          }`}>
+            {toastType === 'success' ? (
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            ) : (
+              <XCircle className="h-5 w-5 text-red-600" />
+            )}
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${
+                toastType === 'success' ? 'text-green-800' : 'text-red-800'
+              }`}>
+                {toastMessage}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowToast(false)}
+              className={`${
+                toastType === 'success' ? 'text-green-600 hover:text-green-800' : 'text-red-600 hover:text-red-800'
+              }`}
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       )}
  
     </div>

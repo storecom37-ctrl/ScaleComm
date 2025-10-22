@@ -44,16 +44,12 @@ export function useAccessiblePerformanceData(filters: PerformanceFilters = {}): 
   if (filters.limit) params.append('limit', filters.limit.toString())
   else params.append('limit', '100')
 
-  // Handle date filtering
-  if (filters.startDate && filters.endDate) {
+  // Handle date filtering - prioritize days parameter
+  if (filters.days) {
+    params.append('days', filters.days.toString())
+  } else if (filters.startDate && filters.endDate) {
     params.append('startDate', filters.startDate)
     params.append('endDate', filters.endDate)
-  } else if (filters.days) {
-    const endDate = new Date()
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - filters.days)
-    params.append('startDate', startDate.toISOString())
-    params.append('endDate', endDate.toISOString())
   } else if (filters.dateRange) {
     params.append('dateRange', filters.dateRange.toString())
   }

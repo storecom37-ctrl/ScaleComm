@@ -3,6 +3,23 @@ import connectDB from '@/lib/database/connection'
 import { Brand, Store, Review, Post, Performance, SearchKeyword } from '@/lib/database/models'
 import { PerformanceDataProcessor } from '@/lib/utils/performance-utils'
 
+// Helper function to convert GMB star rating to numeric value
+function convertStarRating(gmbStarRating: string | number): number {
+  if (typeof gmbStarRating === 'number') {
+    return gmbStarRating
+  }
+  
+  const ratingMap: Record<string, number> = {
+    'ONE': 1,
+    'TWO': 2,
+    'THREE': 3,
+    'FOUR': 4,
+    'FIVE': 5
+  }
+  
+  return ratingMap[gmbStarRating] || 0
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Connect to database with retry mechanism
@@ -182,8 +199,11 @@ export async function POST(request: NextRequest) {
           'gmbData.accountId': data.account.id,
           'gmbData.verified': location.verified || false,
           'gmbData.lastSyncAt': new Date(),
-          // Save GMB websiteUri as microsite.gmbUrl
-          'microsite.gmbUrl': location.websiteUrl || location.micrositeUrl || null
+          // Save GMB websiteUri as microsite.gmbUrl and mapsUrl
+          'microsite.gmbUrl': (location as any).websiteUri || location.websiteUrl || location.micrositeUrl || null,
+          'microsite.mapsUrl': (location as any).metadata?.mapsUri || location.mapsUri, // Save Google Maps URL
+          // Save mapsUri in gmbData.metadata as well
+          'gmbData.metadata.mapsUri': (location as any).metadata?.mapsUri || location.mapsUri
         }
 
         // Add reviews
@@ -419,11 +439,33 @@ export async function POST(request: NextRequest) {
 
     // Save reviews to separate Review collection
     if (data.reviews && Array.isArray(data.reviews)) {
+      console.log(`📝 Processing ${data.reviews.length} reviews for separate collection...`)
+      
       for (const reviewData of data.reviews) {
         try {
           const store = await Store.findOne({ gmbLocationId: reviewData.locationId })
           if (store && brand) {
-            await Review.findOneAndUpdate(
+            // Log review data for debugging
+            const hasReply = !!(reviewData.reviewReply || reviewData.response)
+            const replyData = reviewData.reviewReply || reviewData.response
+            
+            console.log(`📋 Review ${reviewData.id}:`, {
+              hasReply,
+              hasReviewReply: !!reviewData.reviewReply,
+              hasResponse: !!reviewData.response,
+              profilePhotoUrl: reviewData.reviewer?.profilePhotoUrl,
+              starRating: reviewData.starRating,
+              convertedRating: convertStarRating(reviewData.starRating)
+            })
+            
+            if (hasReply) {
+              console.log(`  💬 Reply data:`, {
+                comment: replyData?.comment?.substring(0, 50) + '...',
+                updateTime: replyData?.updateTime
+              })
+            }
+            
+            const savedReview = await Review.findOneAndUpdate(
               { gmbReviewId: reviewData.id },
               {
                 gmbReviewId: reviewData.id,
@@ -435,19 +477,23 @@ export async function POST(request: NextRequest) {
                   profilePhotoUrl: reviewData.reviewer?.profilePhotoUrl,
                   isAnonymous: reviewData.reviewer?.isAnonymous || false
                 },
-                starRating: reviewData.starRating,
+                starRating: convertStarRating(reviewData.starRating),
                 comment: reviewData.comment,
                 gmbCreateTime: new Date(reviewData.createTime),
                 gmbUpdateTime: new Date(reviewData.updateTime),
-                hasResponse: !!reviewData.response,
-                response: reviewData.response ? {
-                  comment: reviewData.response.comment,
-                  responseTime: new Date(reviewData.response.updateTime)
+                hasResponse: hasReply,
+                response: replyData ? {
+                  comment: replyData.comment,
+                  responseTime: new Date(replyData.updateTime)
                 } : undefined
               },
               { upsert: true, new: true }
             )
+            
+            console.log(`  ✅ Saved review with hasResponse:`, savedReview?.hasResponse, 'response:', savedReview?.response?.comment?.substring(0, 30))
             separateReviewsCount++
+          } else {
+            console.log(`  ⚠️ Store not found for locationId: ${reviewData.locationId}`)
           }
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error'

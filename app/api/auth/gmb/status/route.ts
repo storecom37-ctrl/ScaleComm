@@ -14,19 +14,7 @@ export async function GET() {
       })
     }
 
-    let tokenData
-    try {
-      tokenData = JSON.parse(tokens.value)
-    } catch (parseError) {
-      console.error('Error parsing GMB tokens:', parseError)
-      // Clear invalid cookie
-      const response = NextResponse.json({ 
-        isAuthenticated: false,
-        tokens: null 
-      })
-      response.cookies.delete('gmb-tokens')
-      return response
-    }
+    const tokenData = JSON.parse(tokens.value)
     
     // Verify token is still valid
     const isValid = await googleOAuthServerClient.verifyToken(tokenData.access_token)

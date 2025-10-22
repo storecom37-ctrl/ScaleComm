@@ -444,6 +444,50 @@ export class SyncOrchestrator {
         }
       }
 
+      // Process performance data with multiple date ranges
+      for (const [locationId, performanceResult] of allData.performanceData) {
+        if (performanceResult.success && performanceResult.data) {
+          const performanceData = performanceResult.data
+          
+          // Process each date range in the performance data
+          if (performanceData.dateRanges) {
+            const processedPerformanceData = []
+            
+            for (const [rangeLabel, rangeData] of Object.entries(performanceData.dateRanges)) {
+              if (rangeData && typeof rangeData === 'object' && 'data' in rangeData && rangeData.data) {
+                // Type assertion for rangeData
+                const typedRangeData = rangeData as any
+                
+                // Create performance data structure with proper period and dateRange
+                const performanceRecord = {
+                  period: {
+                    startTime: new Date(typedRangeData.startDate),
+                    endTime: new Date(typedRangeData.endDate),
+                    periodType: 'custom',
+                    dateRange: {
+                      days: typedRangeData.days,
+                      label: rangeLabel,
+                      startDate: typedRangeData.startDate,
+                      endDate: typedRangeData.endDate
+                    }
+                  },
+                  ...typedRangeData.data
+                }
+                
+                processedPerformanceData.push(performanceRecord)
+              }
+            }
+            
+            // Save performance data to database
+            if (processedPerformanceData.length > 0) {
+              const locationData = locationMap.get(locationId)
+              await this.saveDataBatch('performance', processedPerformanceData, locationId, locationData)
+              console.log(`✅ Saved ${processedPerformanceData.length} performance records for location ${locationId}`)
+            }
+          }
+        }
+      }
+
     } catch (error) {
       console.error('Error processing locations:', error)
       errorMessages.push(error instanceof Error ? error.message : 'Unknown error')

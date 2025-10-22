@@ -159,11 +159,8 @@ export async function PUT(
         primaryPhone: body.phone || store.phone
       } : undefined,
       websiteUri: body.website || store.socialMedia?.website,
-      categories: (body.primaryCategory || store.primaryCategory) ? {
-        primaryCategory: {
-          displayName: body.primaryCategory || store.primaryCategory
-        }
-      } : undefined
+      // Skip category updates for now since gmbCategoryId is not in the store schema
+      // categories: undefined
     }
 
     // Update location in GMB

@@ -92,34 +92,6 @@ const ReviewSchema = new mongoose.Schema({
   reportedCount: {
     type: Number,
     default: 0
-  },
-  
-  // Sentiment Analysis
-  sentimentAnalysis: {
-    sentiment: {
-      type: String,
-      enum: ['positive', 'negative', 'neutral'],
-      default: null
-    },
-    confidence: {
-      type: Number,
-      min: 0,
-      max: 1,
-      default: null
-    },
-    score: {
-      type: Number,
-      min: -1,
-      max: 1,
-      default: null
-    },
-    method: {
-      type: String,
-      enum: ['rule-based', 'ai', 'hybrid', 'optimized-rule-based'],
-      default: null
-    },
-    reasoning: String,
-    analyzedAt: Date
   }
 }, {
   timestamps: true
@@ -350,6 +322,14 @@ const PerformanceSchema = new mongoose.Schema({
   
   // Impression Metrics
   desktopSearchImpressions: {
+    type: Number,
+    default: 0
+  },
+  mobileSearchImpressions: {
+    type: Number,
+    default: 0
+  },
+  desktopMapsImpressions: {
     type: Number,
     default: 0
   },

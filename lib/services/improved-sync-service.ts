@@ -367,8 +367,8 @@ export class ImprovedSyncService {
       const dateRanges = [
         { days: 7, label: '7 days' },
         { days: 30, label: '30 days' },
-        { days: 90, label: '90 days' },
-        { days: 180, label: '180 days' }
+        { days: 60, label: '60 days' },
+        { days: 90, label: '90 days' }
       ]
 
       const endDate = new Date()
@@ -551,6 +551,9 @@ export class ImprovedSyncService {
         case 'searchKeywords':
           await this.saveSearchKeywordsBatch(batch, syncState, locationData)
           break
+        case 'performance':
+          await this.savePerformanceBatch(batch, syncState, locationData)
+          break
         default:
           console.warn(`Unknown data type: ${dataType}`)
       }
@@ -570,13 +573,40 @@ export class ImprovedSyncService {
         update: {
           $set: {
             name: location.name,
-            address: location.address,
-            phoneNumber: location.phoneNumber,
-            websiteUrl: location.websiteUrl,
-            categories: location.categories,
-            verified: location.verified,
+            phone: location.phoneNumbers?.primaryPhone || location.phoneNumber,
+            address: {
+              line1: (location as any).storefrontAddress?.addressLines?.[0] || location.address?.split(',')[0] || '',
+              line2: (location as any).storefrontAddress?.addressLines?.slice(1).join(', ') || '',
+              locality: (location as any).storefrontAddress?.locality || location.address?.split(',')[location.address.split(',').length - 2]?.trim() || '',
+              city: (location as any).storefrontAddress?.locality || location.address?.split(',')[location.address.split(',').length - 2]?.trim() || '',
+              state: (location as any).storefrontAddress?.administrativeArea || location.address?.split(',')[location.address.split(',').length - 2]?.trim() || '',
+              postalCode: (location as any).storefrontAddress?.postalCode || location.address?.split(',').pop()?.trim() || '',
+              countryCode: (location as any).storefrontAddress?.regionCode || 'IN',
+              // Extract coordinates from GMB API response
+              latitude: (location as any).latlng?.latitude,
+              longitude: (location as any).latlng?.longitude
+            },
+            primaryCategory: (location as any).categories?.primaryCategory?.displayName || location.categories?.[0],
+            additionalCategories: (location as any).categories?.additionalCategories || [],
+            websiteUrl: location.websiteUri,
             gmbAccountId: syncState.accountId,
-            lastSyncAt: new Date()
+            verified: location.verified || false,
+            lastSyncAt: new Date(),
+            'microsite.gmbUrl': location.websiteUri,
+            'microsite.mapsUrl': (location as any).metadata?.mapsUri || location.mapsUri, // Save Google Maps URL
+            // Save complete GMB metadata
+            'gmbData.metadata': {
+              categories: (location as any).categories?.additionalCategories || [],
+              websiteUrl: location.websiteUri,
+              phoneNumber: (location as any).phoneNumbers?.primaryPhone,
+              businessStatus: (location as any).businessStatus || 'OPEN',
+              priceLevel: (location as any).priceLevel || 'PRICE_LEVEL_UNSPECIFIED',
+              primaryCategory: (location as any).categories?.primaryCategory?.displayName,
+              additionalCategories: (location as any).categories?.additionalCategories || [],
+              mapsUri: (location as any).metadata?.mapsUri || location.mapsUri // Save Google Maps URL
+            },
+            'gmbData.verified': location.verified || false,
+            'gmbData.lastSyncAt': new Date()
           }
         },
         upsert: true
@@ -800,6 +830,71 @@ export class ImprovedSyncService {
   }
 
   /**
+   * Save performance batch (used by sync orchestrator)
+   */
+  private static async savePerformanceBatch(
+    batch: any[],
+    syncState: SyncState,
+    locationData?: any
+  ): Promise<void> {
+    try {
+      if (!batch || batch.length === 0) return
+
+      // Ensure database connection
+      await connectDB()
+      
+      // Get store ID
+      const storeId = await this.getStoreIdByLocationId(locationData?.locationId || locationData?.id, syncState.brandId)
+      
+      // Create operations for each performance record
+      const operations = batch.map(performanceData => {
+        return {
+          updateOne: {
+            filter: {
+              storeId: storeId,
+              'period.startTime': new Date(performanceData.period.startTime),
+              'period.endTime': new Date(performanceData.period.endTime),
+              'period.dateRange.days': performanceData.period.dateRange.days
+            },
+            update: {
+              $set: {
+                brandId: syncState.brandId,
+                accountId: syncState.accountId,
+                period: performanceData.period,
+                queries: performanceData.queries || 0,
+                views: performanceData.views || 0,
+                actions: performanceData.actions || 0,
+                photoViews: performanceData.photoViews || 0,
+                callClicks: performanceData.callClicks || 0,
+                websiteClicks: performanceData.websiteClicks || 0,
+                directionRequests: performanceData.directionRequests || 0,
+                businessBookings: performanceData.businessBookings || 0,
+                businessFoodOrders: performanceData.businessFoodOrders || 0,
+                businessMessages: performanceData.businessMessages || 0,
+                desktopSearchImpressions: performanceData.desktopSearchImpressions || 0,
+                mobileMapsImpressions: performanceData.mobileMapsImpressions || 0,
+                conversionRate: performanceData.conversionRate || 0,
+                clickThroughRate: performanceData.clickThroughRate || 0,
+                source: 'gmb',
+                status: 'active'
+              }
+            },
+            upsert: true
+          }
+        }
+      })
+
+      // Execute bulk write operation
+      const result = await Performance.bulkWrite(operations)
+      console.log(`💾 Performance batch saved: ${result.upsertedCount} inserted, ${result.modifiedCount} updated`)
+
+    } catch (error) {
+      console.error('Failed to save performance batch:', error)
+      throw error
+    }
+  }
+
+  /**
    * Save performance data batch with parallel database operations for multiple date ranges
    */
   private static async savePerformanceDataBatchParallel(performanceDataArray: any[], syncState: SyncState, locationId: string): Promise<void> {
@@ -825,8 +920,7 @@ export class ImprovedSyncService {
             filter: {
               storeId: storeId,
               'period.startTime': period.startTime,
-              'period.endTime': period.endTime,
-              'period.dateRange.days': performanceData.dateRange.days
+              'period.endTime': period.endTime
             },
             update: {
               $set: {

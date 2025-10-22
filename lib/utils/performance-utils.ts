@@ -40,6 +40,8 @@ export interface ProcessedPerformanceData {
   businessFoodOrders: number
   businessMessages: number
   desktopSearchImpressions: number
+  mobileSearchImpressions: number
+  desktopMapsImpressions: number
   mobileMapsImpressions: number
   conversionRate: number
   clickThroughRate: number
@@ -68,6 +70,8 @@ export class PerformanceDataProcessor {
     let businessFoodOrders = 0
     let businessMessages = 0
     let desktopSearchImpressions = 0
+    let mobileSearchImpressions = 0
+    let desktopMapsImpressions = 0
     let mobileMapsImpressions = 0
     
     // If we have daily metrics, aggregate them properly
@@ -85,6 +89,8 @@ export class PerformanceDataProcessor {
           const dailyBusinessFoodOrders = Math.max(0, parseInt(String(dailyMetric.metrics.businessFoodOrders || 0)) || 0)
           const dailyBusinessMessages = Math.max(0, parseInt(String(dailyMetric.metrics.businessMessages || 0)) || 0)
           const dailyDesktopSearchImpressions = Math.max(0, parseInt(String(dailyMetric.metrics.desktopSearchImpressions || 0)) || 0)
+          const dailyMobileSearchImpressions = Math.max(0, parseInt(String(dailyMetric.metrics.mobileSearchImpressions || 0)) || 0)
+          const dailyDesktopMapsImpressions = Math.max(0, parseInt(String(dailyMetric.metrics.desktopMapsImpressions || 0)) || 0)
           const dailyMobileMapsImpressions = Math.max(0, parseInt(String(dailyMetric.metrics.mobileMapsImpressions || 0)) || 0)
           
           callClicks += dailyCallClicks
@@ -93,6 +99,8 @@ export class PerformanceDataProcessor {
           businessFoodOrders += dailyBusinessFoodOrders
           businessMessages += dailyBusinessMessages
           desktopSearchImpressions += dailyDesktopSearchImpressions
+          mobileSearchImpressions += dailyMobileSearchImpressions
+          desktopMapsImpressions += dailyDesktopMapsImpressions
           mobileMapsImpressions += dailyMobileMapsImpressions
         }
       })
@@ -101,7 +109,7 @@ export class PerformanceDataProcessor {
     }
     
     // Calculate total views from impressions if not already provided
-    const calculatedViews = desktopSearchImpressions + mobileMapsImpressions
+    const calculatedViews = desktopSearchImpressions + mobileSearchImpressions + desktopMapsImpressions + mobileMapsImpressions
     const finalViews = views > 0 ? views : calculatedViews
     
     // Data validation and correction
@@ -187,6 +195,8 @@ export class PerformanceDataProcessor {
       businessFoodOrders,
       businessMessages,
       desktopSearchImpressions,
+      mobileSearchImpressions,
+      desktopMapsImpressions,
       mobileMapsImpressions,
       conversionRate: Math.round(conversionRate * 100) / 100,
       clickThroughRate: Math.round(clickThroughRate * 100) / 100,
@@ -281,6 +291,8 @@ export class PerformanceDataProcessor {
       businessFoodOrders: acc.businessFoodOrders + data.businessFoodOrders,
       businessMessages: acc.businessMessages + data.businessMessages,
       desktopSearchImpressions: acc.desktopSearchImpressions + data.desktopSearchImpressions,
+      mobileSearchImpressions: acc.mobileSearchImpressions + data.mobileSearchImpressions,
+      desktopMapsImpressions: acc.desktopMapsImpressions + data.desktopMapsImpressions,
       mobileMapsImpressions: acc.mobileMapsImpressions + data.mobileMapsImpressions,
       conversionRate: 0, // Will be calculated below
       clickThroughRate: 0 // Will be calculated below
@@ -288,7 +300,7 @@ export class PerformanceDataProcessor {
       queries: 0, views: 0, actions: 0, photoViews: 0,
       callClicks: 0, websiteClicks: 0,
       businessBookings: 0, businessFoodOrders: 0, businessMessages: 0,
-      desktopSearchImpressions: 0, mobileMapsImpressions: 0,
+      desktopSearchImpressions: 0, mobileSearchImpressions: 0, desktopMapsImpressions: 0, mobileMapsImpressions: 0,
       conversionRate: 0, clickThroughRate: 0
     })
     

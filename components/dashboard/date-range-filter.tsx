@@ -2,179 +2,114 @@
 
 import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, X } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ChevronDown } from "lucide-react"
 
 interface DateRangeFilterProps {
-  startDate: string
-  endDate: string
-  onStartDateChange: (date: string) => void
-  onEndDateChange: (date: string) => void
+  selectedDays: number
+  onDaysChange: (days: number) => void
   onClear: () => void
   className?: string
 }
 
 export function DateRangeFilter({
-  startDate,
-  endDate,
-  onStartDateChange,
-  onEndDateChange,
+  selectedDays,
+  onDaysChange,
   onClear,
   className = ""
 }: DateRangeFilterProps) {
   const [isOpen, setIsOpen] = useState(false)
 
-  // Set default 30-day range if no dates are set
-  React.useEffect(() => {
-    if (!startDate && !endDate) {
-      handleQuickSelect(30)
+  const handleDaysSelect = (days: number) => {
+    onDaysChange(days)
+    setIsOpen(false)
+  }
+
+  const getDisplayText = () => {
+    switch (selectedDays) {
+      case 7: return "Past 7 days"
+      case 30: return "All Time"
+      case 60: return "Past 60 days"
+      case 90: return "Past 90 days"
+      default: return "All Time"
     }
-  }, [startDate, endDate])
-
-  const handleQuickSelect = (days: number) => {
-    const endDate = new Date()
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
-    
-    const startDateStr = startDate.toISOString().split('T')[0]
-    const endDateStr = endDate.toISOString().split('T')[0]
-    
-    console.log('🔍 DateRangeFilter - Quick select:', { days, startDateStr, endDateStr })
-    
-    onStartDateChange(startDateStr)
-    onEndDateChange(endDateStr)
-  }
-
-  const formatDateForDisplay = (dateString: string) => {
-    if (!dateString) return ""
-    return new Date(dateString).toLocaleDateString()
-  }
-
-  const hasActiveFilter = startDate || endDate
-
-  // Determine which quick select button should be highlighted
-  const getActiveDays = () => {
-    if (!startDate || !endDate) return null
-    
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    const diffTime = Math.abs(end.getTime() - start.getTime())
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
-    // Check if it matches one of our predefined ranges (with 1-day tolerance)
-    if (Math.abs(diffDays - 7) <= 1) return 7
-    if (Math.abs(diffDays - 30) <= 1) return 30
-    if (Math.abs(diffDays - 90) <= 1) return 90
-    if (Math.abs(diffDays - 365) <= 1) return 365
-    
-    return null
   }
 
   return (
-    <Card className={className}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Date Range Filter
-          </CardTitle>
-          {hasActiveFilter && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClear}
-              className="h-6 w-6 p-0"
+    <div className={className}>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full justify-between border-blue-200 hover:border-blue-300"
+          >
+            {getDisplayText()}
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-0" align="start">
+          <div className="p-4">
+            <h3 className="font-semibold text-sm mb-4">Duration</h3>
+            
+            <div className="space-y-3">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="duration"
+                  value="all"
+                  checked={selectedDays === 30}
+                  onChange={() => handleDaysSelect(30)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm">All Time</span>
+              </label>
+              
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="duration"
+                  value="7"
+                  checked={selectedDays === 7}
+                  onChange={() => handleDaysSelect(7)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm">Past 7 days</span>
+              </label>
+              
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="duration"
+                  value="60"
+                  checked={selectedDays === 60}
+                  onChange={() => handleDaysSelect(60)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm">Past 60 days</span>
+              </label>
+              
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="duration"
+                  value="90"
+                  checked={selectedDays === 90}
+                  onChange={() => handleDaysSelect(90)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm">Past 90 days</span>
+              </label>
+            </div>
+            
+            <Button 
+              className="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white"
+              onClick={() => setIsOpen(false)}
             >
-              <X className="h-3 w-3" />
+              Apply Filter
             </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Quick Select Buttons */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={getActiveDays() === 7 ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleQuickSelect(7)}
-            className="text-xs"
-          >
-            7 Days
-          </Button>
-          <Button
-            variant={getActiveDays() === 30 ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleQuickSelect(30)}
-            className="text-xs"
-          >
-            30 Days
-          </Button>
-          <Button
-            variant={getActiveDays() === 90 ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleQuickSelect(90)}
-            className="text-xs"
-          >
-            90 Days
-          </Button>
-          <Button
-            variant={getActiveDays() === 365 ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleQuickSelect(365)}
-            className="text-xs"
-          >
-            1 Year
-          </Button>
-        </div>
-
-        {/* Custom Date Inputs */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label htmlFor="start-date" className="text-xs text-muted-foreground">
-              From Date
-            </Label>
-            <Input
-              id="start-date"
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                console.log('🔍 DateRangeFilter - Start date changed:', e.target.value)
-                onStartDateChange(e.target.value)
-              }}
-              className="h-8 text-xs"
-            />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="end-date" className="text-xs text-muted-foreground">
-              To Date
-            </Label>
-            <Input
-              id="end-date"
-              type="date"
-              value={endDate}
-              onChange={(e) => {
-                console.log('🔍 DateRangeFilter - End date changed:', e.target.value)
-                onEndDateChange(e.target.value)
-              }}
-              className="h-8 text-xs"
-            />
-          </div>
-        </div>
-
-        {/* Active Filter Display */}
-        {hasActiveFilter && (
-          <div className="text-xs text-muted-foreground">
-            <span className="font-medium">Active:</span>{" "}
-            {startDate && formatDateForDisplay(startDate)}
-            {startDate && endDate && " - "}
-            {endDate && formatDateForDisplay(endDate)}
-            {startDate && !endDate && " onwards"}
-            {!startDate && endDate && " up to " + formatDateForDisplay(endDate)}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        </PopoverContent>
+      </Popover>
+    </div>
   )
 }

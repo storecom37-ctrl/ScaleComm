@@ -1,4 +1,4 @@
-import { SentimentResult } from '../types/sentiment'
+import { SentimentResult } from './gemini-api'
 
 /**
  * Optimized sentiment analyzer for large-scale processing
@@ -151,7 +151,9 @@ export class OptimizedSentimentAnalyzer {
     if (this.cache.size >= this.CACHE_SIZE_LIMIT) {
       // Remove oldest entries (simple FIFO)
       const firstKey = this.cache.keys().next().value
-      this.cache.delete(firstKey)
+      if (firstKey) {
+        this.cache.delete(firstKey)
+      }
     }
     
     this.cache.set(key, result)

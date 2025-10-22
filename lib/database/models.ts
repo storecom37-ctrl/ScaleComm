@@ -991,6 +991,10 @@ const StoreSchema = new mongoose.Schema({
       type: String,
       trim: true
     },
+    mapsUrl: {
+      type: String,
+      trim: true
+    },
     heroImage: {
       url: String,
       key: String // S3 key for deletion
@@ -1390,6 +1394,7 @@ export interface IStore extends mongoose.Document {
   microsite?: {
     tagline?: string
     gmbUrl?: string
+    mapsUrl?: string
     heroImage?: {
       url?: string
       key?: string

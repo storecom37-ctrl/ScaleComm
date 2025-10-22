@@ -15,52 +15,36 @@ const nextConfig: NextConfig = {
   // Optimize bundle size
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
-    // Enable memory optimizations
-    memoryBasedWorkersCount: true,
-    // Reduce memory usage during build
-    webpackBuildWorker: true,
   },
-  // Memory optimization settings
-  webpack: (config, { dev, isServer }) => {
-    // Reduce memory usage in development
-    if (dev) {
-      config.watchOptions = {
-        poll: 1000,
-        aggregateTimeout: 300,
-      }
-      // Limit memory usage in development
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: 'all',
-          maxSize: 200000, // 200KB max chunk size
-        },
-      }
-    }
-    
-    // Optimize for production builds
-    if (!dev && !isServer) {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              chunks: 'all',
-            },
-          },
-        },
-      }
-    }
-    
-    return config
+  // Allow external images from Google and other domains
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh4.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh5.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh6.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+      },
+    ],
   },
-  // Reduce memory usage
-  swcMinify: true,
-  // Enable compression
-  compress: true,
 };
 
 export default nextConfig;

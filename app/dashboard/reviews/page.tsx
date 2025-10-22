@@ -97,7 +97,7 @@ export default function ReviewsPage() {
   const [viewType, setViewType] = useState<'brand' | 'store' | 'all'>('all')
   
   // View state
-  const [currentView, setCurrentView] = useState<'main' | 'replied' | 'sentiment' | 'business-insights' | 'keyword-analytics'>('main')
+  const [currentView, setCurrentView] = useState<'main' | 'replied' | 'sentiment' | 'business-insights' | 'keyword-analytics'>('sentiment')
   
   // Bulk selection state
   const [selectedReviews, setSelectedReviews] = useState<Set<string>>(new Set())
@@ -112,12 +112,14 @@ export default function ReviewsPage() {
   const [replyModalOpen, setReplyModalOpen] = useState(false)
   const [selectedReviewForReply, setSelectedReviewForReply] = useState<any>(null)
   
+  // View full review modal state
+  const [viewFullModalOpen, setViewFullModalOpen] = useState(false)
+  const [selectedReviewForView, setSelectedReviewForView] = useState<any>(null)
+  
   // Bulk reply state
   const [bulkReplyModalOpen, setBulkReplyModalOpen] = useState(false)
   const [bulkReplyComment, setBulkReplyComment] = useState("")
-  
-  // Sentiment analytics state
-  const [showSentimentAnalytics, setShowSentimentAnalytics] = useState(false)
+  const [isGeneratingBulkAI, setIsGeneratingBulkAI] = useState(false)
   
   // Get GMB data from database only (no localStorage fallback)
   const {
@@ -173,11 +175,28 @@ export default function ReviewsPage() {
     limit: itemsPerPage, // Use actual page size
     skip: (currentPage - 1) * itemsPerPage // Proper pagination offset
   })
+
   
   // Get sync state from store (for UI controls only)
   const { isSyncing, reviewsApiAvailable, reviewsApiError, debugState } = useGmbStore()
-  
-  // Analytics state - now handled by tabs
+
+  // Debug logging for filtering
+  useEffect(() => {
+    console.log('🔍 Reviews filtering debug:', {
+      currentView,
+      hasResponseParam: currentView === 'main' ? false : currentView === 'replied' ? true : undefined,
+      totalCount: reviewsTotalCount,
+      reviewsLength: dbReviews?.length || 0,
+      isLoading: reviewsLoading,
+      sampleReviews: dbReviews?.slice(0, 2).map((r: any) => ({
+        id: r._id?.toString().substring(0, 8),
+        hasResponse: r.hasResponse,
+        reviewer: r.reviewer?.displayName,
+        profilePhotoUrl: r.reviewer?.profilePhotoUrl,
+        hasProfilePhoto: !!r.reviewer?.profilePhotoUrl
+      }))
+    })
+  }, [currentView, reviewsTotalCount, dbReviews, reviewsLoading])
   
   // Use account-specific stores and database reviews
   const finalStores = accountStores || []
@@ -272,6 +291,7 @@ export default function ReviewsPage() {
       return {
         id: review._id || index + 1,
         customer: review.reviewer?.displayName || 'Anonymous',
+        customerPhoto: review.reviewer?.profilePhotoUrl || null,
         store: storeInfo.name || review.locationName || 'Unknown Location',
         rating: review.starRating || 0,
         review: review.comment || 'No comment provided',
@@ -421,6 +441,7 @@ export default function ReviewsPage() {
   const thisMonthReviews = reviewsMetadata?.statistics?.thisMonthReviews || 0
   const lastMonthReviews = reviewsMetadata?.statistics?.lastMonthReviews || 0
   const ratingDistribution = reviewsMetadata?.statistics?.ratingDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  const totalAllReviews = reviewsMetadata?.statistics?.totalAllReviews || 0
   
   // Calculate response rate from current page for display
   const currentPageReviews = filteredAndSortedReviews
@@ -434,6 +455,7 @@ export default function ReviewsPage() {
   
   // Use server-provided total count for accurate pagination
   const totalCount = reviewsTotalCount || filteredAndSortedReviews.length
+  const totalForCard = totalAllReviews > 0 ? totalAllReviews : totalCount
   const totalPages = Math.ceil(totalCount / itemsPerPage)
   
   // Bulk selection handlers
@@ -547,8 +569,6 @@ export default function ReviewsPage() {
     setBulkReplyComment("")
     clearSelection()
   }
-
-  // Analytics functions - now handled by tabs
   
   const handleBulkExport = () => {
     const selectedReviewsData = filteredAndSortedReviews.filter((review: any) => 
@@ -571,6 +591,8 @@ export default function ReviewsPage() {
 
   const handlePostReply = async (reviewId: string, comment: string): Promise<boolean> => {
     try {
+      console.log('📝 Posting reply to review:', reviewId, 'Comment:', comment)
+      
       const response = await fetch(`/api/gmb/reviews/${reviewId}/reply`, {
         method: 'POST',
         headers: {
@@ -582,12 +604,16 @@ export default function ReviewsPage() {
       const data = await response.json()
 
       if (!response.ok) {
+        console.error('❌ Reply failed:', data)
         throw new Error(data.error || 'Failed to post reply')
       }
 
       if (data.success) {
+        console.log('✅ Reply posted successfully:', data)
         // Refresh the reviews data to show the updated response status
-        refreshReviews()
+        setTimeout(() => {
+          refreshReviews()
+        }, 1000) // Small delay to ensure database is updated
         return true
       } else {
         throw new Error(data.error || 'Failed to post reply')
@@ -601,6 +627,17 @@ export default function ReviewsPage() {
   const closeReplyModal = () => {
     setReplyModalOpen(false)
     setSelectedReviewForReply(null)
+  }
+
+  // View full review functionality
+  const handleViewFullReview = (review: any) => {
+    setSelectedReviewForView(review)
+    setViewFullModalOpen(true)
+  }
+
+  const closeViewFullModal = () => {
+    setViewFullModalOpen(false)
+    setSelectedReviewForView(null)
   }
 
   const renderStars = (rating: number) => {
@@ -659,174 +696,17 @@ export default function ReviewsPage() {
             <Filter className="h-4 w-4" />
             {showFilters ? 'Hide' : 'Show'} Filters
           </Button>
-          <Button className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
         </div>
       </div>
 
-      {/* Global Brand and Store Selectors */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Filter by Brand & Store</CardTitle>
-          <CardDescription>
-            Select a brand and store to view analytics and reviews
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="brand-filter">Brand</Label>
-              <BrandSelector
-                selectedBrandId={selectedBrandId}
-                onBrandChange={setSelectedBrandId}
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="store-filter">Store</Label>
-              <Select 
-                value={storeFilter} 
-                onValueChange={(value) => {
-                  setStoreFilter(value)
-                  if (value !== 'all') {
-                    setViewType('store')
-                  }
-                }}
-                disabled={storesLoading}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={
-                    storesLoading ? "Loading stores..." :
-                    finalStores.length === 0 ? "No stores found" :
-                    "Select store"
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    All Stores ({finalStores.length})
-                  </SelectItem>
-                  {finalStores.map((store: any) => (
-                    <SelectItem key={store._id} value={store._id.toString()}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{store.name}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {store.address?.line1 || store.address || 'No address'}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* View Navigation Tabs */}
-      <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
-        <Button
-          variant={currentView === 'main' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setCurrentView('main')}
-          className="flex items-center gap-2"
-        >
-          <AlertCircle className="h-4 w-4" />
-          Unresponded Reviews
-          {currentView === 'main' && totalCount > 0 && (
-            <Badge variant="secondary" className="ml-1">
-              {totalCount}
-            </Badge>
-          )}
-        </Button>
-        <Button
-          variant={currentView === 'replied' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setCurrentView('replied')}
-          className="flex items-center gap-2"
-        >
-          <CheckCircle className="h-4 w-4" />
-          Replied Reviews
-          {currentView === 'replied' && totalCount > 0 && (
-            <Badge variant="secondary" className="ml-1">
-              {totalCount}
-            </Badge>
-          )}
-        </Button>
-        <Button
-          variant={currentView === 'sentiment' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setCurrentView('sentiment')}
-          className="flex items-center gap-2"
-        >
-          <Brain className="h-4 w-4" />
-          Sentiment Analytics
-        </Button>
-        <Button
-          variant={currentView === 'business-insights' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setCurrentView('business-insights')}
-          className="flex items-center gap-2"
-        >
-          <BarChart3 className="h-4 w-4" />
-          Business Insights
-        </Button>
-        <Button
-          variant={currentView === 'keyword-analytics' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setCurrentView('keyword-analytics')}
-          className="flex items-center gap-2"
-        >
-          <Search className="h-4 w-4" />
-          Keyword Analytics
-        </Button>
-      </div>
-
-      {/* Bulk Actions Bar */}
-      {showBulkActions && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <span className="text-sm font-medium text-blue-900">
-                  {selectedReviews.size} review{selectedReviews.size !== 1 ? 's' : ''} selected
-                </span>
-                <div className="flex items-center space-x-2">
-                  {hasPermission('reply_review') && (
-                    <Button size="sm" onClick={handleBulkReply} className="h-8">
-                      <Reply className="h-3 w-3 mr-1" />
-                      Bulk Reply
-                    </Button>
-                  )}
-                  <Button size="sm" variant="outline" onClick={handleBulkExport} className="h-8">
-                    <Download className="h-3 w-3 mr-1" />
-                    Export
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={handleBulkFlag} className="h-8 text-red-600 hover:text-red-700">
-                    <Flag className="h-3 w-3 mr-1" />
-                    Flag
-                  </Button>
-                </div>
-              </div>
-              <Button size="sm" variant="ghost" onClick={clearSelection} className="h-8">
-                <X className="h-3 w-3 mr-1" />
-                Clear
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Reviews</CardTitle>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalCount}</div>
+            <div className="text-2xl font-bold">{totalForCard}</div>
             <p className="text-xs text-muted-foreground">
               {isLoading ? "Loading..." :
                hasError ? "Error loading" :
@@ -842,7 +722,7 @@ export default function ReviewsPage() {
             <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{averageRating.toFixed(1)}</div>
+            <div className={`text-2xl font-bold ${averageRating >= 4 ? 'text-green-600' : averageRating >= 3 ? 'text-yellow-600' : 'text-red-600'}`}>{averageRating.toFixed(1)}</div>
             <p className="text-xs text-muted-foreground">
               {totalCount > 0 
                 ? (averageRating >= 4.5 ? "Excellent performance" : 
@@ -907,23 +787,162 @@ export default function ReviewsPage() {
             </div>
           </CardContent>
         </Card>
-
-            {/* Sentiment Analytics Card */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Sentiment Analytics</CardTitle>
-                <Brain className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="text-2xl font-bold">--</div>
-                  <p className="text-xs text-muted-foreground">
-                    Click to view comprehensive sentiment analysis
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
       </div>
+
+      {/* Global Brand and Store Selectors - Fixed for all tabs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filter by Brand & Store</CardTitle>
+          <CardDescription>
+            Select a brand and store to view analytics and reviews
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="brand-filter">Brand</Label>
+              <BrandSelector
+                selectedBrandId={selectedBrandId}
+                onBrandChange={setSelectedBrandId}
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="store-filter">Store</Label>
+              <Select 
+                value={storeFilter} 
+                onValueChange={(value) => {
+                  setStoreFilter(value)
+                  if (value !== 'all') {
+                    setViewType('store')
+                  }
+                }}
+                disabled={storesLoading}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={
+                    storesLoading ? "Loading stores..." :
+                    finalStores.length === 0 ? "No stores found" :
+                    "Select store"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    All Stores ({finalStores.length})
+                  </SelectItem>
+                  {finalStores.map((store: any) => (
+                    <SelectItem key={store._id} value={store._id.toString()}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{store.name}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {store.address?.line1 || store.address || 'No address'}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* View Navigation Tabs */}
+      <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
+        <Button
+          variant={currentView === 'main' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => {
+            setCurrentView('main')
+            setCurrentPage(1) // Reset pagination when switching views
+            clearSelection() // Clear any selected reviews
+          }}
+          className="flex items-center gap-2"
+        >
+          <AlertCircle className="h-4 w-4" />
+          Unresponded Reviews
+          {currentView === 'main' && totalCount > 0 && (
+            <Badge variant="secondary" className="ml-1">
+              {totalCount}
+            </Badge>
+          )}
+        </Button>
+        <Button
+          variant={currentView === 'replied' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => {
+            setCurrentView('replied')
+            setCurrentPage(1) // Reset pagination when switching views
+            clearSelection() // Clear any selected reviews
+          }}
+          className="flex items-center gap-2"
+        >
+          <CheckCircle className="h-4 w-4" />
+          Replied Reviews
+          {currentView === 'replied' && totalCount > 0 && (
+            <Badge variant="secondary" className="ml-1">
+              {totalCount}
+            </Badge>
+          )}
+        </Button>
+        <Button
+          variant={currentView === 'sentiment' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setCurrentView('sentiment')}
+          className="flex items-center gap-2"
+        >
+          <Brain className="h-4 w-4" />
+          Sentiment Analytics
+        </Button>
+        <Button
+          variant={currentView === 'business-insights' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setCurrentView('business-insights')}
+          className="flex items-center gap-2"
+        >
+          <BarChart3 className="h-4 w-4" />
+          Business Insights
+        </Button>
+        <Button
+          variant={currentView === 'keyword-analytics' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setCurrentView('keyword-analytics')}
+          className="flex items-center gap-2"
+        >
+          <Search className="h-4 w-4" />
+          Keyword Analytics
+        </Button>
+      </div>
+
+      {/* Bulk Actions Bar */}
+      {showBulkActions && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <span className="text-sm font-medium text-blue-900">
+                  {selectedReviews.size} review{selectedReviews.size !== 1 ? 's' : ''} selected
+                </span>
+                <div className="flex items-center space-x-2">
+                  {hasPermission('reply_review') && (
+                    <Button size="sm" onClick={handleBulkReply} className="h-8">
+                      <Reply className="h-3 w-3 mr-1" />
+                      Bulk Reply
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <Button size="sm" variant="ghost" onClick={clearSelection} className="h-8">
+                <X className="h-3 w-3 mr-1" />
+                Clear
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stats Cards */}
+
 
       {/* Main Content - Only show for main views */}
       {(currentView === 'main' || currentView === 'replied') && (
@@ -976,20 +995,6 @@ export default function ReviewsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {/* Search */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Search</label>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search reviews..." 
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-
               {/* Rating Filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Rating</label>
@@ -1027,34 +1032,6 @@ export default function ReviewsPage() {
                       <div className="flex items-center">
                         {renderStars(1)}
                         <span className="ml-2">1 Star</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Status Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Status</label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                    <SelectItem value="review">Under Review</SelectItem>
-                    <SelectItem value="flagged">Flagged</SelectItem>
-                    <SelectItem value="responded">
-                      <div className="flex items-center">
-                        <CheckCircle className="h-3 w-3 mr-2 text-green-500" />
-                        <span>Responded</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="unresponded">
-                      <div className="flex items-center">
-                        <AlertCircle className="h-3 w-3 mr-2 text-orange-500" />
-                        <span>Not Responded</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -1108,84 +1085,8 @@ export default function ReviewsPage() {
               </div>
             </div>
 
-            {/* Advanced Filters Row */}
+            {/* Sentiment Filter */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-4">
-              {/* Response Time Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Response Time</label>
-                <Select value={responseTimeFilter} onValueChange={setResponseTimeFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Response Times" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Response Times</SelectItem>
-                    <SelectItem value="fast">
-                      <div className="flex items-center">
-                        <CheckCircle className="h-3 w-3 mr-2 text-green-500" />
-                        <span>Fast (&lt; 24h)</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="medium">
-                      <div className="flex items-center">
-                        <AlertCircle className="h-3 w-3 mr-2 text-yellow-500" />
-                        <span>Medium (1-3 days)</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="slow">
-                      <div className="flex items-center">
-                        <X className="h-3 w-3 mr-2 text-red-500" />
-                        <span>Slow (&gt; 3 days)</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="no-response">
-                      <div className="flex items-center">
-                        <Minus className="h-3 w-3 mr-2 text-gray-500" />
-                        <span>No Response</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Platform Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Platform</label>
-                <Select value={platformFilter} onValueChange={setPlatformFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Platforms" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Platforms</SelectItem>
-                    <SelectItem value="google">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 mr-2 bg-blue-500 rounded-sm"></div>
-                        <span>Google My Business</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="facebook">Facebook</SelectItem>
-                    <SelectItem value="yelp">Yelp</SelectItem>
-                    <SelectItem value="tripadvisor">TripAdvisor</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Additional Filters Placeholder */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Review Length</label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Lengths" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Lengths</SelectItem>
-                    <SelectItem value="short">Short (&lt; 50 chars)</SelectItem>
-                    <SelectItem value="medium">Medium (50-200 chars)</SelectItem>
-                    <SelectItem value="long">Long (&gt; 200 chars)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Sentiment Filter Placeholder */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Sentiment</label>
                 <Select>
@@ -1226,131 +1127,12 @@ export default function ReviewsPage() {
               </div>
             </div>
 
-            {/* Filter Presets */}
-            <div className="mt-6 pt-4 border-t">
-              <div className="space-y-3">
-                <label className="text-sm font-medium">Quick Filters</label>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setRatingFilter("1")
-                      setStatusFilter("all")
-                      setDateRangeFilter("all")
-                      setResponseTimeFilter("all")
-                      setPlatformFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Low Ratings (1★)
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setRatingFilter("5")
-                      setStatusFilter("all")
-                      setDateRangeFilter("all")
-                      setResponseTimeFilter("all")
-                      setPlatformFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-green-600 hover:text-green-700"
-                  >
-                    <Star className="h-3 w-3 mr-1 fill-current" />
-                    High Ratings (5★)
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setStatusFilter("unresponded")
-                      setRatingFilter("all")
-                      setDateRangeFilter("all")
-                      setResponseTimeFilter("no-response")
-                      setPlatformFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-orange-600 hover:text-orange-700"
-                  >
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Needs Response
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setDateRangeFilter("week")
-                      setRatingFilter("all")
-                      setStatusFilter("all")
-                      setResponseTimeFilter("all")
-                      setPlatformFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-blue-600 hover:text-blue-700"
-                  >
-                    <MessageSquare className="h-3 w-3 mr-1" />
-                    Recent Reviews
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setResponseTimeFilter("fast")
-                      setRatingFilter("all")
-                      setStatusFilter("all")
-                      setDateRangeFilter("all")
-                      setPlatformFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-green-600 hover:text-green-700"
-                  >
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Fast Responses
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setPlatformFilter("google")
-                      setRatingFilter("all")
-                      setStatusFilter("all")
-                      setDateRangeFilter("all")
-                      setResponseTimeFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-blue-600 hover:text-blue-700"
-                  >
-                    <div className="w-3 h-3 mr-1 bg-blue-500 rounded-sm"></div>
-                    Google Reviews
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setRatingFilter("all")
-                      setStatusFilter("all")
-                      setDateRangeFilter("all")
-                      setResponseTimeFilter("all")
-                      setPlatformFilter("all")
-                      setSearchTerm("")
-                    }}
-                    className="text-gray-600 hover:text-gray-700"
-                  >
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    Reset Filters
-                  </Button>
-                </div>
-              </div>
-            </div>
+            {/* Quick Filters removed per request */}
           </CardContent>
         </Card>
       )}
 
-      {/* Brand and Store Selectors */}
+      {/* Reviews Management */}
       <Card>
         <CardHeader>
           <CardTitle>Reviews Management</CardTitle>
@@ -1366,55 +1148,6 @@ export default function ReviewsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:space-y-0 md:space-x-4">
-            {/* Brand Selector */}
-            <div className="flex-1">
-                <BrandSelector 
-                selectedBrandId={selectedBrandId}
-                onBrandChange={setSelectedBrandId}
-                allowAll={true}
-              />
-            </div>
-            
-            {/* Store Selector */}
-            <div className="flex-1">
-            <Select 
-              value={storeFilter} 
-              onValueChange={(value) => {
-                setStoreFilter(value)
-                if (value !== 'all') {
-                    setViewType('store')
-                }
-              }}
-              disabled={storesLoading}
-            >
-                <SelectTrigger className="w-full">
-                <SelectValue placeholder={
-                  storesLoading ? "Loading stores..." :
-                  finalStores.length === 0 ? "No stores found" :
-                  "Select store"
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                    All Stores ({finalStores.length})
-                </SelectItem>
-                {finalStores.map((store: any) => (
-                  <SelectItem key={store._id} value={store._id.toString()}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{store.name}</span>
-                      {store.address && (
-                        <span className="text-xs text-muted-foreground">
-                          {typeof store.address === 'string' ? store.address : store.address.line1 || ''}
-                        </span>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            </div>
-          </div>
 
           {/* Reviews Table */}
           <div className="mt-6">
@@ -1474,6 +1207,24 @@ export default function ReviewsPage() {
                       </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center space-x-2">
+                          {review.customerPhoto ? (
+                            <img 
+                              src={review.customerPhoto} 
+                              alt={review.customer}
+                              className="w-6 h-6 rounded-full object-cover border border-gray-200"
+                              onError={(e) => {
+                                console.log('❌ Profile photo failed to load:', review.customerPhoto)
+                                e.currentTarget.style.display = 'none'
+                              }}
+                              onLoad={() => {
+                                console.log('✅ Profile photo loaded:', review.customerPhoto)
+                              }}
+                            />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
+                              {review.customer.charAt(0).toUpperCase()}
+                            </div>
+                          )}
                           <span>{review.customer}</span>
                           {review.responded && (
                             <CheckCircle className="h-4 w-4 text-green-500" />
@@ -1526,7 +1277,7 @@ export default function ReviewsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewFullReview(review)}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Full Review
                           </DropdownMenuItem>
@@ -1539,7 +1290,7 @@ export default function ReviewsPage() {
                             </DropdownMenuItem>
                           )}
                           {currentView === 'replied' && (
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewFullReview(review)}>
                               <CheckCircle className="mr-2 h-4 w-4" />
                               View Reply Details
                             </DropdownMenuItem>
@@ -1628,100 +1379,123 @@ export default function ReviewsPage() {
           </div>
         </CardContent>
       </Card>
+        </>
+      )}
 
-      {/* Replied Reviews Detailed View */}
-      {currentView === 'replied' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              Replied Reviews - Complete Details
-            </CardTitle>
-            <CardDescription>
-              Detailed view of all reviews that have been responded to
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {paginatedReviews.map((review: any) => (
-                <div key={review.id} className="border rounded-lg p-6 space-y-4">
-                  {/* Review Header */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-2">
-                        {renderStars(review.rating)}
-                        <span className="text-sm text-muted-foreground">({review.rating})</span>
-                      </div>
+      {/* View Full Review Modal */}
+      <Dialog open={viewFullModalOpen} onOpenChange={setViewFullModalOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+          {selectedReviewForView && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  Review Details
+                </DialogTitle>
+                <DialogDescription>
+                  Complete review information with reply details
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* Review Header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      {renderStars(selectedReviewForView.rating)}
+                      <span className="text-sm text-muted-foreground">({selectedReviewForView.rating})</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      {selectedReviewForView.customerPhoto && (
+                        <img 
+                          src={selectedReviewForView.customerPhoto} 
+                          alt={selectedReviewForView.customer}
+                          className="w-10 h-10 rounded-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                      )}
                       <div>
-                        <h3 className="font-semibold">{review.customer}</h3>
-                        <p className="text-sm text-muted-foreground">{review.store}</p>
-                        {review.addressLine1 && (
-                          <p className="text-xs text-muted-foreground">{review.addressLine1}</p>
+                        <h3 className="font-semibold">{selectedReviewForView.customer}</h3>
+                        <p className="text-sm text-muted-foreground">{selectedReviewForView.store}</p>
+                        {selectedReviewForView.addressLine1 && (
+                          <p className="text-xs text-muted-foreground">{selectedReviewForView.addressLine1}</p>
                         )}
-                        {review.addressLine2 && (
-                          <p className="text-xs text-muted-foreground">{review.addressLine2}</p>
+                        {selectedReviewForView.addressLine2 && (
+                          <p className="text-xs text-muted-foreground">{selectedReviewForView.addressLine2}</p>
                         )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{review.date}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {Math.floor((Date.now() - review.fullDate.getTime()) / (1000 * 60 * 60 * 24))} days ago
-                      </p>
-                    </div>
                   </div>
-
-                  {/* Review Content */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-medium text-sm text-gray-700 mb-2">Customer Review:</h4>
-                    <p className="text-gray-900">{review.review}</p>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">{selectedReviewForView.date}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {Math.floor((Date.now() - selectedReviewForView.fullDate.getTime()) / (1000 * 60 * 60 * 24))} days ago
+                    </p>
                   </div>
+                </div>
 
-                  {/* Reply Content */}
-                  {review.reply && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <div className="flex items-start space-x-3">
-                        <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <h4 className="font-medium text-sm text-green-800 mb-2">Business Reply:</h4>
-                          <p className="text-green-900 mb-3">{review.reply.comment}</p>
-                          <div className="flex items-center space-x-4 text-xs text-green-600">
-                            <span>Replied on: {review.replyDate}</span>
-                            <span>•</span>
-                            <span>By: {review.reply.respondedBy || 'Manager'}</span>
-                            <span>•</span>
-                            <span>Platform: {review.platform}</span>
-                          </div>
+                {/* Review Content */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-sm text-gray-700 mb-2">Customer Review:</h4>
+                  <p className="text-gray-900 whitespace-pre-wrap">{selectedReviewForView.review}</p>
+                </div>
+
+                {/* Reply Content */}
+                {selectedReviewForView.reply && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm text-green-800 mb-2">Business Reply:</h4>
+                        <p className="text-green-900 mb-3 whitespace-pre-wrap">{selectedReviewForView.reply.comment}</p>
+                        <div className="flex items-center space-x-4 text-xs text-green-600">
+                          <span>Replied on: {selectedReviewForView.replyDate}</span>
+                          <span>•</span>
+                          <span>By: {selectedReviewForView.reply.respondedBy || 'Manager'}</span>
+                          <span>•</span>
+                          <span>Platform: {selectedReviewForView.platform}</span>
                         </div>
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {/* Actions */}
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">{review.platform}</Badge>
+                {/* Review Metadata */}
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline">{selectedReviewForView.platform}</Badge>
+                    {selectedReviewForView.responded ? (
                       <Badge className="bg-green-100 text-green-800">Responded</Badge>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Full
-                      </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                        <Flag className="h-4 w-4 mr-2" />
-                        Flag
-                      </Button>
-                    </div>
+                    ) : (
+                      <Badge variant="secondary">Not Responded</Badge>
+                    )}
+                    {selectedReviewForView.brandName && (
+                      <Badge variant="outline">{selectedReviewForView.brandName}</Badge>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-        </>
-      )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={closeViewFullModal}>
+                  Close
+                </Button>
+                {!selectedReviewForView.responded && hasPermission('reply_review') && (
+                  <Button onClick={() => {
+                    closeViewFullModal()
+                    handleReplyToReview(selectedReviewForView)
+                  }}>
+                    <Reply className="h-4 w-4 mr-2" />
+                    Reply to Review
+                  </Button>
+                )}
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Reply Modal */}
       {selectedReviewForReply && (
@@ -1791,9 +1565,6 @@ export default function ReviewsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-
-
 
       {/* Sentiment Analytics Tab */}
       {currentView === 'sentiment' && (

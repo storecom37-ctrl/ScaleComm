@@ -48,7 +48,7 @@ export class GeminiSentimentAnalyzer {
     }
     
     try {
-      this.model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+      this.model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
       console.log('✅ Gemini API initialized for sentiment analysis')
     } catch (error) {
       console.warn('⚠️ Failed to initialize Gemini API:', error)

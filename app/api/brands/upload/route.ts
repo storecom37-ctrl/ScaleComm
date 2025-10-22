@@ -1,5 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
+import { uploadToS3, generateFileKey, validateImageFile, fileToBuffer } from '@/lib/services/aws-s3'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,16 +15,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // For now, return a placeholder URL since AWS S3 is not configured
-    const placeholderUrl = `https://via.placeholder.com/300x200?text=${encodeURIComponent(file.name)}`
+    // Validate file
+    const validation = validateImageFile(file)
+    if (!validation.valid) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      )
+    }
+
+    // Convert file to buffer
+    const buffer = await fileToBuffer(file)
+
+    // Generate unique file key
+    const key = generateFileKey(file.name, folder)
+
+    // Upload to S3
+    const result = await uploadToS3(buffer, key, file.type)
 
     return NextResponse.json({
       success: true,
-      data: {
-        url: placeholderUrl,
-        key: `${folder}/${Date.now()}-${file.name}`
-      },
-      message: 'File uploaded successfully (placeholder)'
+      data: result,
+      message: 'File uploaded successfully'
     })
   } catch (error) {
     console.error('Error uploading file:', error)

@@ -295,18 +295,10 @@ export async function GET(request: NextRequest) {
       {
         $lookup: {
           from: 'stores',
-          let: { storeId: '$storeId' },
+          localField: 'storeId',
+          foreignField: '_id',
+          as: 'storeInfo',
           pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $or: [
-                    { $eq: ['$_id', '$$storeId'] },
-                    { $eq: [{ $toString: '$_id' }, { $toString: '$$storeId' }] }
-                  ]
-                }
-              }
-            },
             {
               $project: {
                 name: 1,
@@ -316,15 +308,7 @@ export async function GET(request: NextRequest) {
                 gmbAccountId: 1
               }
             }
-          ],
-          as: 'storeInfo'
-        }
-      },
-      // Add debug stage to see what's happening
-      {
-        $addFields: {
-          debugStoreId: '$storeId',
-          debugStoreInfo: '$storeInfo'
+          ]
         }
       },
       {
@@ -343,7 +327,7 @@ export async function GET(request: NextRequest) {
           ]
         }
       },
-      { $sort: { gmbCreateTime: -1 } }
+      { $sort: { gmbCreateTime: -1 as const } }
     ]
 
     // Add pagination if limit is specified
@@ -354,40 +338,16 @@ export async function GET(request: NextRequest) {
       pipeline.push({ $limit: limit })
     }
 
-    // Debug: Check what stores exist
-    const debugStores = await Store.find({}).limit(5).select('_id name gmbLocationId gmbAccountId')
-    console.log('🔍 Reviews API - Debug stores in database:', debugStores)
-    
     // Execute aggregation
     const [reviews, totalCountResult] = await Promise.all([
       Review.aggregate(pipeline),
       Review.countDocuments(query)
     ])
     
-    // Debug: Check what reviews we got
-    console.log('🔍 Reviews API - Debug reviews sample:', reviews.slice(0, 2).map(r => ({
-      reviewId: r._id,
-      storeId: r.storeId,
-      storeInfo: r.storeInfo,
-      debugStoreId: r.debugStoreId,
-      debugStoreInfo: r.debugStoreInfo
-    })))
-    
     // Transform reviews to include location information
     const transformedReviews = reviews.map((review: any) => {
       const storeInfo = review.storeInfo?.[0]
       const brandInfo = review.brandInfo?.[0]
-      
-      // Debug logging for location issues
-      if (!storeInfo) {
-        console.log('🔍 Reviews API - Missing store info for review:', {
-          reviewId: review._id,
-          storeId: review.storeId,
-          storeInfo: review.storeInfo,
-          hasStoreInfo: !!review.storeInfo,
-          storeInfoLength: review.storeInfo?.length
-        })
-      }
       
       return {
           ...review,

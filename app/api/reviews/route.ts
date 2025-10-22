@@ -120,7 +120,12 @@ export async function GET(request: NextRequest) {
     }
     
     // Calculate statistics from all reviews matching the query (not just current page)
+    // Also compute replied/unreplied counts irrespective of hasResponse filter
     const statsQuery = { ...query }
+    const baseQueryForResponse = { ...statsQuery }
+    if (typeof baseQueryForResponse.hasResponse !== 'undefined') {
+      delete (baseQueryForResponse as any).hasResponse
+    }
     const allMatchingReviews = await Review.find(statsQuery)
       .select('starRating gmbCreateTime')
       .lean()
@@ -163,13 +168,22 @@ export async function GET(request: NextRequest) {
       }
     })
     
+    // Replied/unreplied counts under current filters (ignoring hasResponse constraint)
+    const [repliedCount, unrepliedCount] = await Promise.all([
+      Review.countDocuments({ ...baseQueryForResponse, hasResponse: true }),
+      Review.countDocuments({ ...baseQueryForResponse, hasResponse: false })
+    ])
+
     const metadata = {
       statistics: {
         averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal place
         thisMonthReviews,
         lastMonthReviews,
         totalReviews: allMatchingReviews.length,
-        ratingDistribution
+        ratingDistribution,
+        repliedCount,
+        unrepliedCount,
+        totalAllReviews: repliedCount + unrepliedCount
       }
     }
     

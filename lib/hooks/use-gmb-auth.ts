@@ -31,19 +31,7 @@ export function useGmbAuth() {
 
   const checkAuthStatus = useCallback(async () => {
     try {
-      const response = await fetch('/api/auth/gmb/status', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // Add timeout to prevent hanging requests
-        signal: AbortSignal.timeout(5000)
-      })
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      
+      const response = await fetch('/api/auth/gmb/status')
       const data = await response.json()
       
       if (data.isAuthenticated && data.tokens) {
@@ -54,9 +42,8 @@ export function useGmbAuth() {
     } catch (error) {
       console.error('Failed to check auth status:', error)
       setConnected(false)
-      setError(error instanceof Error ? error.message : 'Unknown error')
     }
-  }, [setConnected, setError])
+  }, [setConnected])
 
   const initiateAuth = useCallback(async () => {
     try {

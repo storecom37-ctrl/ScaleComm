@@ -176,7 +176,7 @@ export async function GET(request: NextRequest) {
           ]
         }
       },
-      { $sort: { gmbCreateTime: -1 } }
+      { $sort: { gmbCreateTime: -1 as const } }
     ]
 
     // Add pagination if limit is specified

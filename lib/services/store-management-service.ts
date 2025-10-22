@@ -312,11 +312,8 @@ export class StoreManagementService {
             phoneNumbers: updateData.phone ? {
               primaryPhone: updateData.phone
             } : undefined,
-            categories: updateData.primaryCategory ? {
-              primaryCategory: {
-                displayName: updateData.primaryCategory
-              }
-            } : undefined
+            // Skip category updates for now since we don't have gmbCategoryId
+            // categories: undefined
           }
 
           gmbLocation = await gmbService.updateLocation(store.gmbLocationId, locationData)
@@ -494,20 +491,45 @@ export class StoreManagementService {
                   storeCode: uniqueStoreCode,
                   slug: slug,
                   email: accountInfo.email,
-                  phone: location.phoneNumber,
+                  phone: (location as any).phoneNumbers?.primaryPhone || location.phoneNumber,
                   address: {
-                    line1: location.address.split(',')[0] || '',
-                    line2: '',
-                    locality: location.address.split(',')[location.address.split(',').length - 2]?.trim() || '',
-                    city: location.address.split(',')[location.address.split(',').length - 2]?.trim() || '',
-                    state: location.address.split(',')[location.address.split(',').length - 2]?.trim() || '',
-                    postalCode: location.address.split(',').pop()?.trim() || '',
-                    countryCode: 'US'
+                    line1: (location as any).storefrontAddress?.addressLines?.[0] || location.address?.split(',')[0] || '',
+                    line2: (location as any).storefrontAddress?.addressLines?.slice(1).join(', ') || '',
+                    locality: (location as any).storefrontAddress?.locality || location.address?.split(',')[location.address.split(',').length - 2]?.trim() || '',
+                    city: (location as any).storefrontAddress?.locality || location.address?.split(',')[location.address.split(',').length - 2]?.trim() || '',
+                    state: (location as any).storefrontAddress?.administrativeArea || location.address?.split(',')[location.address.split(',').length - 2]?.trim() || '',
+                    postalCode: (location as any).storefrontAddress?.postalCode || location.address?.split(',').pop()?.trim() || '',
+                    countryCode: (location as any).storefrontAddress?.regionCode || 'US',
+                    // Extract coordinates from GMB API response
+                    latitude: (location as any).latlng?.latitude,
+                    longitude: (location as any).latlng?.longitude
                   },
-                  primaryCategory: location.categories[0] || 'Business',
-                  gmbLocationId: location.id,
+                  primaryCategory: (location as any).categories?.primaryCategory?.displayName || location.categories?.[0] || 'Business',
+                  additionalCategories: (location as any).categories?.additionalCategories || [],
+                  gmbLocationId: location.name, // Use location.name as it contains the full GMB location path
                   gmbAccountId: account.name,
-                  status: 'active'
+                  status: 'active',
+                  verified: location.verified || false,
+                  lastSyncAt: new Date(),
+                  // Save complete GMB metadata
+                  gmbData: {
+                    metadata: {
+                      categories: (location as any).categories?.additionalCategories || [],
+                      websiteUrl: (location as any).websiteUri,
+                      phoneNumber: (location as any).phoneNumbers?.primaryPhone,
+                      businessStatus: (location as any).businessStatus || 'OPEN',
+                      priceLevel: (location as any).priceLevel || 'PRICE_LEVEL_UNSPECIFIED',
+                      primaryCategory: (location as any).categories?.primaryCategory?.displayName,
+                      additionalCategories: (location as any).categories?.additionalCategories || [],
+                      mapsUri: (location as any).metadata?.mapsUri || location.mapsUri // Save Google Maps URL
+                    },
+                    verified: location.verified || false,
+                    lastSyncAt: new Date()
+                  },
+                  microsite: {
+                    gmbUrl: (location as any).websiteUri,
+                    mapsUrl: (location as any).metadata?.mapsUri || location.mapsUri // Save Google Maps URL
+                  }
                 }
 
                 store = await Store.findOneAndUpdate(
