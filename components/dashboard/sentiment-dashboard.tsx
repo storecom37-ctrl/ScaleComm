@@ -85,7 +85,7 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
     ratingDistribution: { 1: number; 2: number; 3: number; 4: number; 5: number }
   } | null>(null)
 
-  const fetchAnalytics = async (force = false) => {
+  const fetchAnalytics = async (force = false, retryCount = 0) => {
     // Check if we have the required ID
     if (!brandId && !storeId) {
       console.warn('No brandId or storeId provided for sentiment analytics')
@@ -95,7 +95,11 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
 
     setIsLoading(true)
     setProgress(0)
-    setStatusMessage('Initializing analysis...')
+    setStatusMessage(retryCount > 0 ? `Retrying analysis (attempt ${retryCount + 1})...` : 'Initializing analysis...')
+    
+    // Declare variables at function scope
+    let timeoutId: NodeJS.Timeout | undefined
+    let progressInterval: NodeJS.Timeout | undefined
     
     try {
       const params = new URLSearchParams()
@@ -108,18 +112,33 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
       setStatusMessage('Fetching data from server...')
       setProgress(20)
 
-      // Add timeout to prevent hanging
+      // Add timeout to prevent hanging - increased to 5 minutes for large datasets
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minute timeout
+      timeoutId = setTimeout(() => {
+        console.log('Sentiment analysis timeout reached, aborting request')
+        controller.abort()
+      }, 300000) // 5 minute timeout
 
-      setStatusMessage('Processing sentiment analysis...')
+      setStatusMessage('Processing sentiment analysis... This may take several minutes for large datasets.')
       setProgress(40)
+      
+      // Add progress simulation for long-running operations
+      progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev < 70) {
+            setStatusMessage(`Processing sentiment analysis... ${Math.round(prev)}% complete`)
+            return prev + 1
+          }
+          return prev
+        })
+      }, 1000)
 
       const response = await fetch(`/api/analytics/sentiment?${params.toString()}`, {
         signal: controller.signal
       })
       
-      clearTimeout(timeoutId)
+      if (timeoutId) clearTimeout(timeoutId)
+      if (progressInterval) clearInterval(progressInterval)
       setProgress(80)
       setStatusMessage('Finalizing results...')
       
@@ -136,10 +155,26 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
       }
     } catch (error: any) {
       console.error('Error fetching sentiment analytics:', error)
+      
+      // Clear intervals and timeouts
+      if (timeoutId) clearTimeout(timeoutId)
+      if (progressInterval) clearInterval(progressInterval)
+      
+      // Retry logic for network errors and timeouts
+      if (retryCount < 2 && (error.name === 'AbortError' || (error.name === 'TypeError' && error.message.includes('fetch')))) {
+        console.log(`Retrying sentiment analysis (attempt ${retryCount + 1}/2)`)
+        setTimeout(() => {
+          fetchAnalytics(force, retryCount + 1)
+        }, 2000 * (retryCount + 1)) // Exponential backoff
+        return
+      }
+      
       if (error.name === 'AbortError') {
-        setStatusMessage('Request timed out - please try again')
+        setStatusMessage('Analysis timed out - the dataset is large and needs more time. Please try again or contact support.')
+      } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        setStatusMessage('Network error - please check your connection and try again')
       } else {
-        setStatusMessage('Error: ' + error.message)
+        setStatusMessage('Error: ' + (error.message || 'Unknown error occurred'))
       }
       setAnalytics(null)
     } finally {

@@ -24,7 +24,7 @@ export function useStores(options: UseStoresOptions = {}) {
   const [error, setError] = useState<string | null>(null)
   const [pagination, setPagination] = useState<any>(null)
 
-  const fetchStores = async () => {
+  const fetchStores = async (retryCount = 0) => {
     setIsLoading(true)
     setError(null)
     
@@ -36,8 +36,23 @@ export function useStores(options: UseStoresOptions = {}) {
       if (brandId) params.append('brandId', brandId)
       if (accountId) params.append('accountId', accountId)
 
-      const response = await fetch(`/api/stores?${params.toString()}`)
+      const url = `/api/stores?${params.toString()}`
+      console.log('Fetching stores from:', url)
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-cache'
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
       const result = await response.json()
+      console.log('Stores fetched successfully:', result)
 
       if (result.success) {
         setStores(result.data || [])
@@ -48,6 +63,14 @@ export function useStores(options: UseStoresOptions = {}) {
       }
     } catch (err) {
       console.error('Error fetching stores:', err)
+      
+      // Retry logic for network errors
+      if (retryCount < 3 && (err instanceof TypeError || (err instanceof Error && err.message.includes('Failed to fetch')))) {
+        console.log(`Retrying stores fetch (attempt ${retryCount + 1}/3)...`)
+        setTimeout(() => fetchStores(retryCount + 1), 1000 * (retryCount + 1))
+        return
+      }
+      
       setError('Failed to fetch stores')
       setStores([])
     } finally {

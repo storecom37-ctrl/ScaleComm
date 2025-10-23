@@ -12,17 +12,11 @@ interface DeviceInteractionData {
 
 interface DeviceInteractionChartProps {
   data: DeviceInteractionData
-  timeFilter: string
-  onTimeFilterChange: (filter: string) => void
   isLoading?: boolean
 }
 
-const timeFilters = ['1M', '6M', '1Y', 'All time']
-
 export function DeviceInteractionChart({ 
   data, 
-  timeFilter, 
-  onTimeFilterChange, 
   isLoading = false 
 }: DeviceInteractionChartProps) {
   const { desktop, mobile, total } = data
@@ -35,17 +29,6 @@ export function DeviceInteractionChart({
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Interaction By Devices</CardTitle>
-          <div className="flex space-x-4">
-            {timeFilters.map((filter) => (
-              <button
-                key={filter}
-                className="text-sm text-gray-500 hover:text-gray-700"
-                disabled
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -66,21 +49,6 @@ export function DeviceInteractionChart({
     <Card className="w-full">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Interaction By Devices</CardTitle>
-        <div className="flex space-x-4">
-          {timeFilters.map((filter) => (
-            <button
-              key={filter}
-              onClick={() => onTimeFilterChange(filter)}
-              className={`text-sm transition-colors ${
-                timeFilter === filter
-                  ? 'text-primary font-medium border-b-2 border-primary'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">

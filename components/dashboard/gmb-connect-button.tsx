@@ -72,7 +72,14 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
       })
       
       // Get tokens first - this is fast if cached
-      const tokensResponse = await fetch('/api/auth/gmb/tokens')
+      const tokensResponse = await fetch('/api/auth/gmb/tokens', {
+        headers: { 'Content-Type': 'application/json' }
+      })
+      
+      if (!tokensResponse.ok) {
+        throw new Error(`Failed to get tokens: ${tokensResponse.status} ${tokensResponse.statusText}`)
+      }
+      
       const tokensData = await tokensResponse.json()
       
       if (!tokensData.tokens) {
@@ -87,16 +94,22 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
       })
 
       // Use the proper sync endpoint that fetches GMB data from Google API
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 minute timeout
+      
       const response = await fetch('/api/gmb/sync-data', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ tokens: tokensData.tokens }),
+        signal: controller.signal
       })
+      
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
-        throw new Error('Failed to sync GMB data')
+        throw new Error(`Sync request failed: ${response.status} ${response.statusText}`)
       }
 
       // The sync-data endpoint uses Server-Sent Events, so we need to handle the stream
@@ -223,12 +236,17 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
                       
                       // Quick check if data is available
                       try {
-                        const quickCheck = await fetch('/api/gmb/data/stats')
-                        const statsData = await quickCheck.json()
-                        if (statsData.success) {
-                          dataReady = true
-                          console.log('✅ Data ready in', Date.now() - startTime, 'ms')
-                          break
+                        const quickCheck = await fetch('/api/gmb/data/stats', {
+                          headers: { 'Content-Type': 'application/json' }
+                        })
+                        
+                        if (quickCheck.ok) {
+                          const statsData = await quickCheck.json()
+                          if (statsData.success) {
+                            dataReady = true
+                            console.log('✅ Data ready in', Date.now() - startTime, 'ms')
+                            break
+                          }
                         }
                       } catch (e) {
                         // Continue waiting
@@ -243,16 +261,38 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
                     try {
                       console.log('📥 Fetching all data from database after sync...')
                       
-                      // Fetch all relevant data from database in parallel
+                      // Fetch all relevant data from database in parallel with timeout
+                      const fetchWithTimeout = async (url: string, timeout = 10000) => {
+                        const controller = new AbortController()
+                        const timeoutId = setTimeout(() => controller.abort(), timeout)
+                        
+                        try {
+                          const response = await fetch(url, {
+                            signal: controller.signal,
+                            headers: { 'Content-Type': 'application/json' }
+                          })
+                          clearTimeout(timeoutId)
+                          
+                          if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+                          }
+                          
+                          return await response.json()
+                        } catch (err) {
+                          clearTimeout(timeoutId)
+                          throw err
+                        }
+                      }
+                      
                       const fetchPromises = [
-                        fetch('/api/stores?limit=100').then(res => res.json()),
-                        fetch('/api/gmb/data/locations').then(res => res.json()),
-                        fetch('/api/gmb/data/reviews?limit=100').then(res => res.json()),
-                        fetch('/api/gmb/data/posts?limit=100').then(res => res.json()),
-                        fetch('/api/gmb/data/stats').then(res => res.json()),
-                        fetch('/api/performance?limit=100&days=30').then(res => res.json()),
-                        fetch('/api/brands').then(res => res.json()),
-                        fetch('/api/gmb/data/keywords?limit=100').then(res => res.json())
+                        fetchWithTimeout('/api/stores?limit=100'),
+                        fetchWithTimeout('/api/gmb/data/locations'),
+                        fetchWithTimeout('/api/gmb/data/reviews?limit=100'),
+                        fetchWithTimeout('/api/gmb/data/posts?limit=100'),
+                        fetchWithTimeout('/api/gmb/data/stats'),
+                        fetchWithTimeout('/api/performance?limit=100&days=30'),
+                        fetchWithTimeout('/api/brands'),
+                        fetchWithTimeout('/api/gmb/data/keywords?limit=100')
                       ]
                       
                       const results = await Promise.allSettled(fetchPromises)
@@ -388,7 +428,7 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
       <Button 
         onClick={handleConnect} 
         disabled={isAuthenticating}
-        className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+        className="flex items-center gap-2 bg-[#4285F4] hover:bg-[#3367D6] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
       >
         {isAuthenticating ? (
           <>
@@ -410,7 +450,7 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
       <Button 
         onClick={handleSync} 
         disabled={isSyncing}
-        className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+        className="flex items-center gap-2 bg-[#4285F4] hover:bg-[#3367D6] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
       >
         {isSyncing ? (
           <>

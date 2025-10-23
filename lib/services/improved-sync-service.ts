@@ -804,6 +804,8 @@ export class ImprovedSyncService {
               businessFoodOrders: insight.businessFoodOrders,
               businessMessages: insight.businessMessages,
               desktopSearchImpressions: insight.desktopSearchImpressions,
+              mobileSearchImpressions: insight.mobileSearchImpressions,
+              desktopMapsImpressions: insight.desktopMapsImpressions,
               mobileMapsImpressions: insight.mobileMapsImpressions,
               dailyMetrics: insight.dailyMetrics,
               websiteClicksSeries: insight.websiteClicksSeries,

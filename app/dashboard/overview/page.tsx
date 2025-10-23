@@ -2,11 +2,9 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AnalyticsCard } from "@/components/dashboard/analytics-card"
 import { LocationFilter } from "@/components/dashboard/location-filter"
-// import { ImprovedGmbConnectButton } from "@/components/dashboard/improved-gmb-connect-button"
 import { GmbConnectButton } from "@/components/dashboard/gmb-connect-button"
 import { useGmbSync } from "@/lib/hooks/use-gmb-sync"
 import { useGmbAuth } from "@/lib/hooks/use-gmb-auth"
@@ -21,6 +19,7 @@ import { KeywordAnalyticsCards } from "@/components/dashboard/keyword-analytics-
 import { KeywordPerformanceTable } from "@/components/dashboard/keyword-performance-table"
 import { StorePerformanceTable } from "@/components/dashboard/store-performance-table"
 import { ImpressionAnalytics } from "@/components/dashboard/impression-analytics"
+import { RatingReviewsSection } from "@/components/dashboard/rating-reviews-section"
 import GlobalSyncStatus from "@/components/dashboard/global-sync-status"
 import { calculateVisibilityScore, extractMetricsFromGmbData, ScoringMetrics } from "@/lib/utils/scoring"
 import { formatLargeNumber, formatPercentage } from "@/lib/utils"
@@ -36,7 +35,14 @@ import {
   BarChart3,
   Target,
   CheckCircle,
-  Navigation
+  Navigation,
+  MapPin,
+  Calendar,
+  Filter,
+  Building2,
+  Users,
+  MousePointerClick,
+  Navigation as NavigationIcon
 } from "lucide-react"
 import { DateRangeFilter } from "@/components/dashboard/date-range-filter"
 
@@ -98,100 +104,39 @@ export default function OverviewPage() {
   const { getStoredTokens } = useGmbAuth()
   
   // Get accessible performance data with simplified filtering
-  const performanceFilters = {
-    days: selectedDays, // Use selected days only
-    status: 'active'
-  }
-  
-  console.log('🔍 Overview Page - Performance filters:', performanceFilters)
-  
   const {
-    aggregated: performanceAggregated,
+    data: performanceData,
+    aggregated: filteredPerformanceData,
     isLoading: performanceLoading,
-    hasGmbAccess: performanceAccess,
-    error: performanceError
-  } = useAccessibleStoreWisePerformanceData(performanceFilters)
-  
-  // Get location-specific performance data with simplified filtering
-  const locationFilters = {
-    days: selectedDays, // Use selected days only
-    status: 'active'
-  }
-  
-  console.log('🔍 Overview Page - Location filters:', locationFilters)
-  
-  const {
-    data: locationPerformanceData,
-    isLoading: locationPerformanceLoading,
-    error: locationPerformanceError
-  } = useLocationPerformanceData(locationFilters)
-  
-  
-  // Use filtered stores from API and reviews/posts from database
-  const finalAccount = dbAccount
-  const finalLocations = filteredStores.map((store: any) => ({
-    id: store.gmbLocationId || store._id,
-    _id: store._id,
-    name: store.name,
-    address: store.address,
-    phoneNumber: store.phone,
-    websiteUrl: store.socialMedia?.website,
-    categories: [store.primaryCategory],
-    verified: store.status === 'active'
-  }))
-  
-  // Filter reviews and posts based on selected stores
-  const filteredStoreIds = filteredStores.map((store: any) => store.gmbLocationId || store._id)
-  const finalReviews = (dbReviews || []).filter((review: any) => 
-    filteredStoreIds.includes(review.locationId)
-  )
-  const finalPosts = (dbPosts || []).filter((post: any) => 
-    filteredStoreIds.includes(post.locationId)
-  )
-  const finalIsConnected = dbConnected
+    hasGmbAccess: performanceAccess
+  } = useAccessibleStoreWisePerformanceData({
+    days: selectedDays,
+    status: 'active',
+    limit: 1000,
+    storeId: selectedStores.includes("all") ? "all" : selectedStores[0] || "all"
+  })
 
+  // Get location performance data for scoring
+  const { data: locationPerformanceData } = useLocationPerformanceData({
+    days: selectedDays,
+    status: 'active'
+  })
+
+  // Calculate total locations
   const totalLocations = filteredStores.length
-  const totalReviews = finalReviews.length
-  const averageRating = finalReviews.length > 0 
-    ? finalReviews.reduce((sum: number, review: any) => sum + review.starRating, 0) / finalReviews.length 
-    : 0
-  const totalPosts = finalPosts.length
-  
-  // Filter performance data based on selected stores
-  const filteredPerformanceData = performanceAggregated ? {
-    totalViews: selectedStores.includes("all") 
-      ? performanceAggregated.totalViews 
-      : finalLocations.reduce((sum: number, location: any) => {
-          const locationPerf = locationPerformanceData[location.id] || {}
-          return sum + (locationPerf.totalViews || 0)
-        }, 0),
-    totalCallClicks: selectedStores.includes("all") 
-      ? performanceAggregated.totalCallClicks 
-      : finalLocations.reduce((sum: number, location: any) => {
-          const locationPerf = locationPerformanceData[location.id] || {}
-          return sum + (locationPerf.totalCallClicks || 0)
-        }, 0),
-    totalWebsiteClicks: selectedStores.includes("all") 
-      ? performanceAggregated.totalWebsiteClicks 
-      : finalLocations.reduce((sum: number, location: any) => {
-          const locationPerf = locationPerformanceData[location.id] || {}
-          return sum + (locationPerf.totalWebsiteClicks || 0)
-        }, 0),
-    totalDirectionRequests: selectedStores.includes("all") 
-      ? performanceAggregated.totalDirectionRequests 
-      : finalLocations.reduce((sum: number, location: any) => {
-          const locationPerf = locationPerformanceData[location.id] || {}
-          return sum + (locationPerf.totalDirectionRequests || 0)
-        }, 0),
-  } : null
-  
-  // Use performance data from database instead of insights from localStorage
-  const totalInsights = filteredPerformanceData?.totalViews || 0
-  
-  // Create insights object from performance data for compatibility with scoring function
-  const insightsFromPerformance = finalLocations.reduce((acc: any, location: any) => {
-    const locationPerf = locationPerformanceData[location.id] || {}
-    acc[location.id] = {
+
+  // Determine if we have a connection and data
+  const finalIsConnected = dbConnected && totalLocations > 0
+
+  // Get final data arrays
+  const finalLocations = dbAccount?.locations || []
+  const finalReviews = dbReviews || []
+  const finalPosts = dbPosts || []
+
+  // Create insights object from performance data for scoring
+  const insightsFromPerformance = Object.keys(locationPerformanceData).reduce((acc: any, locationId: string) => {
+    const locationPerf = locationPerformanceData[locationId]
+    acc[locationId] = {
       views: locationPerf.totalViews || 0,
       callClicks: locationPerf.totalCallClicks || 0,
       websiteClicks: locationPerf.totalWebsiteClicks || 0,
@@ -294,144 +239,167 @@ export default function OverviewPage() {
   }
   
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Local Store Analytics Dashboard</h1>
-        </div>
-        <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
-          <DateRangeFilter
-            selectedDays={selectedDays}
-            onDaysChange={handleDaysChange}
-            onClear={handleClearFilter}
-            className="w-full sm:w-auto"
-          />
-          <GmbConnectButton compact />
-          <Button variant="outline" className="flex items-center gap-2" onClick={() => {
-            refreshAll()
-            refreshStores()
-          }}>
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {/* Store Filter */}
-      <div className="grid gap-4 md:grid-cols-1">
-        <LocationFilter />
-      </div>
-
-      {/* Key Metrics */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Key Metrics
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <AnalyticsCard
-              title="Total Locations"
-              value={finalIsConnected ? totalLocations.toString() : "—"}
-              description={finalIsConnected ? (totalLocations > 0 ? "From database" : "No locations synced") : "Connect GMB to view data"}
-              icon={MousePointer}
-              isEmpty={!finalIsConnected || totalLocations === 0}
-            />
-            <AnalyticsCard
-              title="Total Views"
-              value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
-                (filteredPerformanceData.totalViews > 0 ? filteredPerformanceData.totalViews : 0) : 
-                "—"
-              }
-              description={performanceAccess ? 
-                (filteredPerformanceData && filteredPerformanceData.totalViews > 0 ? "From performance database" : "No performance data available") : 
-                "Connect GMB to view data"
-              }
-              icon={Eye}
-              isLoading={performanceLoading}
-              isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalViews || filteredPerformanceData.totalViews === 0))}
-            />
-            <AnalyticsCard
-              title="Website Clicks"
-              value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
-                (filteredPerformanceData.totalWebsiteClicks > 0 ? filteredPerformanceData.totalWebsiteClicks : 0) : 
-                "—"
-              }
-              description={performanceAccess ? 
-                (filteredPerformanceData && filteredPerformanceData.totalWebsiteClicks > 0 ? "From performance database" : "No website clicks data available") : 
-                "Connect GMB to view data"
-              }
-              icon={Globe}
-              isLoading={performanceLoading}
-              isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalWebsiteClicks || filteredPerformanceData.totalWebsiteClicks === 0))}
-            />
-            <AnalyticsCard
-              title="Call Clicks"
-              value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
-                (filteredPerformanceData.totalCallClicks > 0 ? filteredPerformanceData.totalCallClicks : 0) : 
-                "—"
-              }
-              description={performanceAccess ? 
-                (filteredPerformanceData && filteredPerformanceData.totalCallClicks > 0 ? "From performance database" : "No call data available") : 
-                "Connect GMB to view data"
-              }
-              icon={Phone}
-              isLoading={performanceLoading}
-              isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalCallClicks || filteredPerformanceData.totalCallClicks === 0))}
-            />
-            <AnalyticsCard
-              title="Direction Requests"
-              value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
-                (filteredPerformanceData.totalDirectionRequests > 0 ? filteredPerformanceData.totalDirectionRequests : 0) : 
-                "—"
-              }
-              description={performanceAccess ? 
-                (filteredPerformanceData && filteredPerformanceData.totalDirectionRequests > 0 ? "From performance database" : "No direction data available") : 
-                "Connect GMB to view data"
-              }
-              icon={Navigation}
-              isLoading={performanceLoading}
-              isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalDirectionRequests || filteredPerformanceData.totalDirectionRequests === 0))}
-            />
-            <AnalyticsCard
-              title="Total Actions"
-              value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
-                (filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests > 0 ? 
-                  (filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests) : 0) : 
-                "—"
-              }
-              description={performanceAccess ? 
-                (filteredPerformanceData && (filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests) > 0 ? "Calls + Website + Directions" : "No actions data available") : 
-                "Connect GMB to view data"
-              }
-              icon={TrendingUp}
-              isLoading={performanceLoading}
-              isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || (filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests) === 0))}
-            />
+    <div className="min-h-screen bg-gray-50">
+      {/* Modern Header Section */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="px-6 py-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Local Store Analytics Dashboard</h1>
+              <p className="text-gray-600 mt-2">
+                Welcome back, here's a look at your store's performance.
+              </p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Button variant="outline" className="flex items-center space-x-2">
+                <Calendar className="h-4 w-4" />
+                <span>All Time</span>
+                <Navigation className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" className="flex items-center space-x-2">
+                <Filter className="h-4 w-4" />
+                <span>Store Filter</span>
+              </Button>
+              <GmbConnectButton />
+              <Button
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="bg-[#4285F4] hover:bg-[#3367D6] text-white flex items-center space-x-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Impression Analytics */}
-      {finalIsConnected && performanceAccess && filteredStores.length > 0 && (
+      <div className="px-6 py-8 space-y-8">
+        {/* Store Filter */}
+        <LocationFilter />
+
+        {/* Key Metrics - Modern Card Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+          {/* Total Locations */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 flex items-center">
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Total Locations
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  {finalIsConnected ? totalLocations : "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Total Views */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 flex items-center">
+                  <Eye className="h-4 w-4 mr-2" />
+                  Total Views
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  {performanceAccess && !performanceLoading && filteredPerformanceData ? 
+                    (filteredPerformanceData.totalViews > 0 ? formatLargeNumber(filteredPerformanceData.totalViews) : "0") : 
+                    "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Website Clicks */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 flex items-center">
+                  <MousePointerClick className="h-4 w-4 mr-2" />
+                  Website Clicks
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  {performanceAccess && !performanceLoading && filteredPerformanceData ? 
+                    (filteredPerformanceData.totalWebsiteClicks > 0 ? formatLargeNumber(filteredPerformanceData.totalWebsiteClicks) : "0") : 
+                    "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Call Clicks */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 flex items-center">
+                  <Phone className="h-4 w-4 mr-2" />
+                  Call Clicks
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  {performanceAccess && !performanceLoading && filteredPerformanceData ? 
+                    (filteredPerformanceData.totalCallClicks > 0 ? formatLargeNumber(filteredPerformanceData.totalCallClicks) : "0") : 
+                    "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Direction Requests */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 flex items-center">
+                  <NavigationIcon className="h-4 w-4 mr-2" />
+                  Direction Requests
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  {performanceAccess && !performanceLoading && filteredPerformanceData ? 
+                    (filteredPerformanceData.totalDirectionRequests > 0 ? formatLargeNumber(filteredPerformanceData.totalDirectionRequests) : "0") : 
+                    "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Total Actions */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 flex items-center">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Total Actions
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  {performanceAccess && !performanceLoading && filteredPerformanceData ? 
+                    (filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests > 0 ? 
+                      formatLargeNumber(filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests) : "0") : 
+                    "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Impression Analytics */}
         <ImpressionAnalytics 
-          accountId={filteredStores[0]?.accountId || ''} 
-          locationId={filteredStores[0]?.gmbLocationId || ''} 
+          accountId="all" 
+          locationId="all" 
         />
-      )}
 
-      {/* Engagement Metrics */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
+        {/* Rating & Reviews Analytics */}
+        <RatingReviewsSection 
+          brandId="all"
+          storeId="all"
+        />
+
+        {/* Engagement Metrics */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <BarChart3 className="h-5 w-5 mr-2" />
             Engagement Metrics
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </h3>
           <div className="grid gap-4 md:grid-cols-4">
             <AnalyticsCard
               title="Call Conversion Rate"
@@ -473,7 +441,7 @@ export default function OverviewPage() {
               isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalViews || filteredPerformanceData.totalViews === 0))}
             />
             <AnalyticsCard
-              title="Overall Engagement"
+              title="Total Engagement Rate"
               value={performanceAccess && !performanceLoading && filteredPerformanceData ? 
                 (filteredPerformanceData.totalViews > 0 ? 
                   formatPercentage(((filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests) / filteredPerformanceData.totalViews) * 100, 1, "0%")
@@ -486,167 +454,144 @@ export default function OverviewPage() {
               isEmpty={!performanceAccess || (!performanceLoading && (!filteredPerformanceData || !filteredPerformanceData.totalViews || filteredPerformanceData.totalViews === 0))}
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Store Performance Data */}
-      {finalIsConnected && (
-        <StorePerformanceTable 
-          days={selectedDays}
-          status="active"
-          showFilters={true}
-          limit={5}
-          storeIds={selectedStores.includes("all") ? undefined : selectedStores}
-        />
-      )}
+        {/* Store Performance Data */}
+        {finalIsConnected && (
+          <StorePerformanceTable 
+            days={selectedDays}
+            status="active"
+            showFilters={true}
+            limit={5}
+            storeIds={selectedStores.includes("all") ? undefined : selectedStores}
+          />
+        )}
 
-      {/* Keyword Analytics */}
-      {finalIsConnected && (
-        <KeywordAnalyticsCards 
-          limit={5}
-        />
-      )}
+        {/* Keyword Analytics */}
+        {finalIsConnected && (
+          <KeywordAnalyticsCards 
+            limit={5}
+          />
+        )}
 
-      {/* Location-wise Visibility Scores */}
-      {finalIsConnected && locationScoringData  && (
-        <LocationScoringTable 
-          locations={locationScoringData} 
-          isLoading={dbLoading}
-        />
-      )}
+        {/* Location-wise Visibility Scores */}
+        {finalIsConnected && locationScoringData  && (
+          <LocationScoringTable 
+            locations={locationScoringData} 
+            isLoading={dbLoading}
+          />
+        )}
 
-
-      {/* Scoring Insights & Recommendations */}
-      {/* {finalIsConnected && overallScoringDetails && (
-        <ScoringInsights 
-          scoringDetails={overallScoringDetails} 
-          isLoading={dbLoading}
-        />
-      )} */}
-
-      {/* Recent Activity */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Reviews</CardTitle>
-            <CardDescription>Latest customer feedback</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {finalIsConnected && finalReviews.length > 0 ? (
-              finalReviews.slice(0, 3).map((review: any, i: number) => {
-                const location = finalLocations.find((loc: any) => loc.id === review.locationId)
-                return (
-                  <div key={`review-${review.id}-${i}`} className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{review.reviewer.displayName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {review.comment || 'No comment provided'}
-                      </p>
-                      <div className="flex items-center mt-1 space-x-2">
-                        <div className="flex">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star 
-                              key={star} 
-                              className={`h-3 w-3 ${star <= review.starRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
-                            />
-                          ))}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(review.createTime).toLocaleDateString()}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          • {location?.name || 'Unknown Location'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })
-            ) : (
-              <div className="text-center py-8">
-                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                  <MessageSquare className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {finalIsConnected ? "No reviews available yet" : "Connect your GMB account to view reviews"}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Performing Locations</CardTitle>
-            <CardDescription>Top 5 locations ranked by visibility score</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {finalIsConnected && finalLocations?.length > 0 ? (
-              locationScoringData
-                .sort((a : any, b : any) => b.scoringDetails.breakdown.totalScore - a.scoringDetails.breakdown.totalScore)
-                .slice(0, 5)
-                .map((location : any, i: number) => {
-                  const { scoringDetails, metrics } = location
-                  const { breakdown, grade } = scoringDetails
-                  
+        {/* Recent Activity */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Recent Reviews</h3>
+            <p className="text-sm text-gray-600 mb-4">Latest customer feedback</p>
+            <div className="space-y-4">
+              {finalIsConnected && finalReviews.length > 0 ? (
+                finalReviews.slice(0, 3).map((review: any, i: number) => {
+                  const location = finalLocations.find((loc: any) => loc.id === review.locationId)
                   return (
-                    <div key={location.locationId} className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{location.locationName}</p>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <span className="flex items-center">
-                            <Star className="h-3 w-3 mr-1 fill-yellow-400 text-yellow-400" />
-                            {metrics.averageRating > 0 ? metrics.averageRating.toFixed(1) : 'No rating'}
-                          </span>
-                          <span>{metrics.totalReviews} reviews</span>
-                          <span>{metrics.callClicks} calls</span>
-                          <span className={`font-medium ${
-                            grade.startsWith('A') ? 'text-green-600' :
-                            grade.startsWith('B') ? 'text-blue-600' :
-                            grade.startsWith('C') ? 'text-yellow-600' :
-                            'text-red-600'
-                          }`}>
-                            {breakdown.totalScore}/100
-                          </span>
+                    <div key={`review-${review.id}-${i}`} className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={`text-xs ${
-                          grade.startsWith('A') ? 'bg-green-100 text-green-800' :
-                          grade.startsWith('B') ? 'bg-blue-100 text-blue-800' :
-                          grade.startsWith('C') ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {grade}
-                        </Badge>
-                        <Badge variant={i === 0 ? "default" : "secondary"}>
-                          #{i + 1}
-                        </Badge>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{review.reviewer.displayName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {review.comment || 'No comment provided'}
+                        </p>
+                        <div className="flex items-center mt-1 space-x-2">
+                          <div className="flex">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star 
+                                key={star} 
+                                className={`h-3 w-3 ${star <= review.starRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+                              />
+                            ))}
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(review.createTime).toLocaleDateString()}
+                          </span>
+                          {location && (
+                            <span className="text-xs text-blue-600">
+                              {location.name}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )
                 })
-            ) : (
-              <div className="text-center py-8">
-                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Target className="h-6 w-6 text-muted-foreground" />
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                    <MessageSquare className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {finalIsConnected ? "No reviews available yet" : "Connect your GMB account to view reviews"}
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {finalIsConnected ? "No location data available yet" : "Connect your GMB account to view location performance"}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              )}
+            </div>
+          </div>
 
-      {/* Global Sync Status */}
-      <GlobalSyncStatus />
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Top Performing Locations</h3>
+            <p className="text-sm text-gray-600 mb-4">Top 5 locations ranked by visibility score</p>
+            <div className="space-y-4">
+              {finalIsConnected && finalLocations?.length > 0 ? (
+                locationScoringData
+                  .sort((a : any, b : any) => b.scoringDetails.breakdown.totalScore - a.scoringDetails.breakdown.totalScore)
+                  .slice(0, 5)
+                  .map((location : any, i: number) => {
+                    const { scoringDetails, metrics } = location
+                    const { breakdown, grade } = scoringDetails
+                    
+                    return (
+                      <div key={location.locationId} className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{location.locationName}</p>
+                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                            <span className="flex items-center">
+                              <Star className="h-3 w-3 mr-1 fill-yellow-400 text-yellow-400" />
+                              {metrics.averageRating > 0 ? metrics.averageRating.toFixed(1) : 'No rating'}
+                            </span>
+                            <span>{metrics.totalReviews} reviews</span>
+                            <span>{metrics.recentReviews} recent</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <div className="text-right">
+                            <div className="text-lg font-bold">{breakdown.totalScore}</div>
+                            <div className="text-xs text-muted-foreground">Score</div>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            #{i + 1}
+                          </Badge>
+                        </div>
+                      </div>
+                    )
+                  })
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Target className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {finalIsConnected ? "No location data available yet" : "Connect your GMB account to view location performance"}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Global Sync Status */}
+        <GlobalSyncStatus />
+      </div>
     </div>
   )
 }

@@ -1524,14 +1524,15 @@ export default function StoreCreateModal({
               />
             )}
             {Object.keys(fieldErrors).length > 0 && (
-              <ErrorDisplay
-                type="warning"
-                title="Please fix the following issues:"
-                message=""
-                className="mb-3"
-              >
+              <div className="mb-3">
+                <ErrorDisplay
+                  type="warning"
+                  title="Please fix the following issues:"
+                  message=""
+                  className="mb-2"
+                />
                 <ValidationErrors errors={fieldErrors} />
-              </ErrorDisplay>
+              </div>
             )}
           </div>
         )}

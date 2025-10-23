@@ -67,31 +67,35 @@ export function AnalyticsCard({
   }
 
   return (
-    <Card className={cn("", className)}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
-      </CardHeader>
-      <CardContent>
-        {renderValue()}
-        {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        )}
-        {trend && !isLoading && !isEmpty && (
-          <div className="flex items-center pt-1">
-            <Badge
-              variant={trend.isPositive ? "default" : "destructive"}
-              className="text-xs"
-            >
-              {trend.isPositive ? "+" : "-"}{Math.abs(trend.value)}%
-            </Badge>
-            <span className="text-xs text-muted-foreground ml-2">
-              from last month
-            </span>
+    <div className={cn("bg-white rounded-lg p-6 shadow-sm border border-gray-200", className)}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600 flex items-center">
+            {Icon && <Icon className="h-4 w-4 mr-2" />}
+            {title}
+          </p>
+          <div className="mt-2">
+            {renderValue()}
           </div>
-        )}
-        {children}
-      </CardContent>
-    </Card>
+          {description && (
+            <p className="text-xs text-gray-500 mt-1">{description}</p>
+          )}
+          {trend && !isLoading && !isEmpty && (
+            <div className="flex items-center mt-2">
+              <Badge
+                variant={trend.isPositive ? "default" : "destructive"}
+                className={`text-xs ${trend.isPositive ? 'bg-[#4285F4] hover:bg-[#3367D6] text-white' : ''}`}
+              >
+                {trend.isPositive ? "+" : "-"}{Math.abs(trend.value)}%
+              </Badge>
+              <span className="text-xs text-gray-500 ml-2">
+                from last month
+              </span>
+            </div>
+          )}
+          {children}
+        </div>
+      </div>
+    </div>
   )
 }
