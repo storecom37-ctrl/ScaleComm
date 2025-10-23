@@ -21,7 +21,7 @@ export async function getGmbTokensFromRequest(): Promise<AuthTokens | null> {
     const result = await getAndRefreshTokensIfNeeded()
     
     if (!result.success || !result.tokens) {
-      console.log('🔍 Failed to get tokens:', result.error)
+      
       return null
     }
 
@@ -68,7 +68,7 @@ export async function getAllAccessibleAccounts(tokens: AuthTokens): Promise<Arra
       const data = await response.json()
       const accounts = data.accounts || []
       
-      console.log('🔍 Raw GMB accounts response:', JSON.stringify(data, null, 2))
+      
       
       const mappedAccounts = accounts.map((account: any) => ({
         id: account.name?.replace('accounts/', '') || '',
@@ -114,7 +114,7 @@ export async function getCurrentUserEmail(tokens: AuthTokens): Promise<string | 
     }
 
     const userInfo = await response.json()
-    console.log('🔍 Current user email from tokens:', userInfo.email)
+    
     
     return userInfo.email || null
   } catch (error) {
@@ -148,7 +148,7 @@ export async function getCurrentUserProfile(tokens: AuthTokens): Promise<{
     }
 
     const userInfo = await response.json()
-    console.log('🔍 Current user profile from tokens:', userInfo)
+    
     
     return {
       email: userInfo.email || null,
@@ -180,22 +180,22 @@ export async function getAllBrandAccountIds(): Promise<string[]> {
   try {
     const tokens = await getGmbTokensFromRequest()
     if (!tokens) {
-      console.log('🔍 No GMB tokens found in request')
+      
       return []
     }
 
-    console.log('🔍 Found GMB tokens, fetching accessible accounts...')
+    
 
     // Get accounts that the current user actually has access to
     const accessibleAccounts = await getAllAccessibleAccounts(tokens)
     if (!accessibleAccounts) {
-      console.log('🔍 No accessible accounts found')
+      
       return []
     }
 
     // Return only the account IDs that the user has access to
     const accountIds = accessibleAccounts.map(account => account.id).filter(id => id)
-    console.log('🔍 Final accessible account IDs:', accountIds)
+    
     
     return accountIds
   } catch (error) {

@@ -17,7 +17,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('Starting GMB data sync...')
     
     // Validate required data structure
     if (!gmbData.account || !gmbData.locations) {

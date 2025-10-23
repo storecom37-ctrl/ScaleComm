@@ -45,7 +45,7 @@ export default function OverviewPage() {
   const [selectedDays, setSelectedDays] = useState<number>(30)
 
   // Debug logging for date range state
-  console.log('🔍 Overview Page - Date range state:', { selectedDays })
+  
 
   // Get filter state from global store
   const { selectedStores } = useGmbStore()
@@ -103,7 +103,7 @@ export default function OverviewPage() {
     status: 'active'
   }
   
-  console.log('🔍 Overview Page - Performance filters:', performanceFilters)
+  
   
   const {
     aggregated: performanceAggregated,
@@ -118,7 +118,7 @@ export default function OverviewPage() {
     status: 'active'
   }
   
-  console.log('🔍 Overview Page - Location filters:', locationFilters)
+  
   
   const {
     data: locationPerformanceData,

@@ -57,7 +57,7 @@ export class GmbSyncService {
           },
           { new: true }
         )
-        console.log('Updated brand with GMB data:', updatedBrand?.name)
+        
         return updatedBrand
       } else {
         // Create new brand from GMB location
@@ -87,7 +87,7 @@ export class GmbSyncService {
         })
         
         const savedBrand = await newBrand.save()
-        console.log('Created brand from GMB location:', savedBrand.name)
+        
         return savedBrand
       }
     } catch (error) {
@@ -159,7 +159,7 @@ export class GmbSyncService {
           },
           { new: true }
         )
-        console.log('Updated store with GMB data:', updatedStore?.name)
+        
         return updatedStore
       } else {
         // Generate unique slug for new store
@@ -223,12 +223,12 @@ export class GmbSyncService {
           })
           
           const savedStore = await newStore.save()
-          console.log('Created store from GMB location:', savedStore.name, 'with slug:', savedStore.slug)
+          
           return savedStore
         } catch (error: any) {
           if (error.code === 11000 && error.keyPattern?.slug) {
             // Handle duplicate slug error by using upsert
-            console.log('⚠️ Duplicate slug detected in sync service, using upsert approach')
+            
             const upsertedStore = await Store.findOneAndUpdate(
               { gmbLocationId: location.id },
               {
@@ -256,7 +256,7 @@ export class GmbSyncService {
               },
               { upsert: true, new: true }
             )
-            console.log('✅ Store upserted in sync service:', upsertedStore?.name, 'with slug:', upsertedStore?.slug)
+            
             return upsertedStore
           } else {
             throw error
@@ -331,7 +331,7 @@ export class GmbSyncService {
         }
       }
       
-      console.log(`Saved ${savedCount} reviews to database`)
+      
       return savedCount
     } catch (error) {
       console.error('Error saving reviews to database:', error)
@@ -399,7 +399,7 @@ export class GmbSyncService {
         }
       }
       
-      console.log(`Saved ${savedCount} posts to database`)
+      
       return savedCount
     } catch (error) {
       console.error('Error saving posts to database:', error)
@@ -412,7 +412,7 @@ export class GmbSyncService {
    */
   static async syncAllData(gmbData: GmbSyncData): Promise<any> {
     try {
-      console.log('Starting complete GMB data sync to Brand/Store models...')
+      
       
       const results = {
         brands: 0,
@@ -442,7 +442,7 @@ export class GmbSyncService {
         results.posts = await this.savePostsToDatabase(gmbData.posts)
       }
       
-      console.log('GMB data sync completed successfully!', results)
+      
       
       return {
         account: gmbData.account,

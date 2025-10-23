@@ -9,7 +9,7 @@ let restartCount = 0;
 const maxRestarts = 5;
 
 function startServer() {
-  console.log('🚀 Starting Next.js development server...');
+  
   
   serverProcess = spawn('npm', ['run', 'dev'], {
     stdio: 'inherit',
@@ -21,11 +21,11 @@ function startServer() {
   });
 
   serverProcess.on('close', (code) => {
-    console.log(`Server process exited with code ${code}`);
+    
     
     if (code !== 0 && restartCount < maxRestarts) {
       restartCount++;
-      console.log(`🔄 Restarting server (attempt ${restartCount}/${maxRestarts})...`);
+      ...`);
       setTimeout(() => {
         startServer();
       }, 2000);
@@ -43,7 +43,7 @@ function startServer() {
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {
-  console.log('\n🛑 Shutting down server monitor...');
+  
   if (serverProcess) {
     serverProcess.kill('SIGINT');
   }
@@ -51,7 +51,7 @@ process.on('SIGINT', () => {
 });
 
 process.on('SIGTERM', () => {
-  console.log('\n🛑 Shutting down server monitor...');
+  
   if (serverProcess) {
     serverProcess.kill('SIGTERM');
   }

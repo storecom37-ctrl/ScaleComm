@@ -51,8 +51,8 @@ export function useLocationPerformanceData(filters: {
 
   // Use SWR for data fetching
   const apiUrl = `/api/performance/store-wise?${params.toString()}`
-  console.log('🔍 useLocationPerformanceData - API URL:', apiUrl)
-  console.log('🔍 useLocationPerformanceData - Filters:', filters)
+  
+  
   
   const { data, error, isLoading, mutate } = useSWR(
     isConnected ? apiUrl : null,

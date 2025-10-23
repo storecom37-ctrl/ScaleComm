@@ -188,7 +188,7 @@ async function improvedSyncGmbData(
       }
     })
 
-    console.log('✅ Improved sync completed successfully!')
+    
     safeClose()
 
   } catch (error: unknown) {

@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('🧪 Starting test sync...')
+    
     
     // Initialize sync state
     const accountData = {
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
     
     const syncState = await ImprovedSyncService.initializeSync(tokens, accountData)
-    console.log('✅ Sync state initialized:', syncState.id)
+    
     
     // Test with a simple location
     const testLocation = {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       accountId: 'test-account-123'
     }
     
-    console.log('🧪 Testing with location:', testLocation.name)
+    
     
     // Test the parallel save methods directly
     const testReviews = [
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       }
     ]
     
-    console.log('💾 Testing reviews save...')
+    
     // This will test the database connection and save functionality
     await (ImprovedSyncService as any).saveReviewsBatchParallel(testReviews, syncState, testLocation.id)
     

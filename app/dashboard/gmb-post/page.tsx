@@ -183,7 +183,7 @@ export default function GMBPostPage() {
     setIsLoadingPosts(true)
     
     try {
-      console.log('🔄 Starting posts sync from GMB...')
+      
       
       // Step 1: Sync posts from GMB API to database
       const syncResponse = await fetch('/api/gmb/sync-posts', {
@@ -199,10 +199,10 @@ export default function GMBPostPage() {
       }
       
       const syncData = await syncResponse.json()
-      console.log('✅ Posts sync completed:', syncData)
+      
       
       // Step 2: Fetch updated posts from database
-      console.log('📥 Fetching updated posts from database...')
+      
       await fetchGmbPosts()
       
       // Show success message
@@ -553,10 +553,7 @@ export default function GMBPostPage() {
         event: eventData
       }
 
-      console.log('Sending post creation request:', {
-        locationName: createPostForm.location,
-        postData
-      })
+     
 
       const response = await fetch('/api/gmb/posts', {
         method: 'POST',
@@ -569,8 +566,8 @@ export default function GMBPostPage() {
         })
       })
 
-      console.log('Response status:', response.status)
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+      
+      
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -579,7 +576,7 @@ export default function GMBPostPage() {
       }
 
       const result = await response.json()
-      console.log('Post created successfully:', result)
+      
 
       // Close modal and reset form
       handleCloseCreatePostModal()
@@ -701,10 +698,7 @@ export default function GMBPostPage() {
         event: eventData
       }
 
-      console.log('Sending post update request:', {
-        postId: editPostModal.post?.gmbPostId,
-        postData
-      })
+    
 
       const response = await fetch(`/api/gmb/posts/${editPostModal.post?.gmbPostId}`, {
         method: 'PUT',
@@ -716,7 +710,7 @@ export default function GMBPostPage() {
         })
       })
 
-      console.log('Response status:', response.status)
+      
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -725,7 +719,7 @@ export default function GMBPostPage() {
       }
 
       const result = await response.json()
-      console.log('Post updated successfully:', result)
+      
 
       // Close modal and reset form
       handleCloseEditPostModal()
@@ -746,7 +740,7 @@ export default function GMBPostPage() {
     
     setIsDeleting(true)
     try {
-      console.log('Deleting post:', deletePostModal.post.gmbPostId)
+      
       
       const response = await fetch(`/api/gmb/posts/${deletePostModal.post.gmbPostId}`, { 
         method: 'DELETE' 
@@ -758,7 +752,7 @@ export default function GMBPostPage() {
       }
       
       const result = await response.json()
-      console.log('Post deleted successfully:', result)
+      
       
       // Refresh posts list
       await fetchGmbPosts()

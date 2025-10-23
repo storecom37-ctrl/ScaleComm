@@ -40,7 +40,7 @@ export async function refreshAndPersistTokens(currentTokens: GoogleTokens): Prom
       }
     }
 
-    console.log('🔄 Refreshing access token...')
+    
     
     // Refresh the access token
     const newTokens = await googleOAuthServerClient.refreshAccessToken(currentTokens.refresh_token)
@@ -65,7 +65,7 @@ export async function refreshAndPersistTokens(currentTokens: GoogleTokens): Prom
       path: '/'
     })
 
-    console.log('✅ Access token refreshed and persisted')
+    
     
     return {
       success: true,
@@ -102,7 +102,7 @@ export async function getAndRefreshTokensIfNeeded(): Promise<RefreshResult> {
     
     // Check if token is expired or about to expire
     if (isTokenExpired(tokens)) {
-      console.log('⚠️ Token expired or expiring soon, refreshing...')
+      
       return await refreshAndPersistTokens(tokens)
     }
 

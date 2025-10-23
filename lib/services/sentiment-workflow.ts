@@ -60,7 +60,7 @@ export class SentimentWorkflowService {
       const heapUsedMB = memUsage.heapUsed / 1024 / 1024
       const heapTotalMB = memUsage.heapTotal / 1024 / 1024
       
-      console.log(`💾 Memory usage: ${heapUsedMB.toFixed(2)}MB used / ${heapTotalMB.toFixed(2)}MB total`)
+      
       
       // If memory usage is too high, return false to stop processing
       if (heapUsedMB > 3000) { // 3GB threshold
@@ -120,7 +120,7 @@ export class SentimentWorkflowService {
   async analyzeAndSave(entityId: string, entityType: 'brand' | 'store', days: number = 30): Promise<SentimentAnalyticsData> {
     await connectToDatabase()
 
-    console.log(`🔍 Starting sentiment analysis for ${entityType}: ${entityId}`)
+    
 
     // Validate ObjectId format
     if (!mongoose.Types.ObjectId.isValid(entityId)) {
@@ -131,10 +131,9 @@ export class SentimentWorkflowService {
     const endDate = new Date()
     const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000))
     
-    console.log(`📅 Analyzing reviews from ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]} (${days} days)`)
-    
+
     // Log account-specific analysis
-    console.log(`🏢 Account-specific analysis for ${entityType} ID: ${entityId}`)
+    
 
     // Get reviews for this entity within the specified time range, sorted by recency (newest first)
     const reviews = await Review.find({
@@ -147,7 +146,7 @@ export class SentimentWorkflowService {
     // If there are no reviews in the selected period, do not throw.
     // Return an "empty" analytics object so the UI can render a valid state.
     if (reviews.length === 0) {
-      console.log(`ℹ️ No reviews found for ${entityType}: ${entityId} in the last ${days} days. Returning empty analytics.`)
+      
       const emptyAnalytics = await this.calculateAggregatedAnalytics(entityId, entityType, reviews)
       emptyAnalytics.processingStats = {
         totalReviews: 0,
@@ -164,11 +163,11 @@ export class SentimentWorkflowService {
       return emptyAnalytics
     }
 
-    console.log(`📊 Found ${reviews.length} reviews to analyze`)
+    
 
     // Analyze sentiment for reviews that don't have it yet, sorted by recency
     const reviewsToAnalyze = reviews.filter(review => !review.sentimentAnalysis?.sentiment)
-    console.log(`🤖 Found ${reviewsToAnalyze.length} reviews needing sentiment analysis in the last ${days} days`)
+    
 
     // Limit the number of reviews processed in a single run to prevent memory issues
     const maxReviewsPerRun = 500
@@ -179,17 +178,15 @@ export class SentimentWorkflowService {
         reviewsToProcess = reviewsToAnalyze.slice(0, maxReviewsPerRun)
         remainingReviews = reviewsToAnalyze.length - maxReviewsPerRun
         
-        if (remainingReviews > 0) {
-          console.log(`⚠️ Large dataset: ${reviewsToAnalyze.length} total reviews. Processing ${maxReviewsPerRun} in this run. ${remainingReviews} remaining for next run.`)
-        }
+   
         
-        console.log(`📊 Processing ${reviewsToProcess.length} reviews (newest first)`)
+        
         
         // Use optimized batch processing for all reviews in the time range
         const batchSize = 3 // Very conservative batch size for maximum memory stability
         const texts = reviewsToProcess.map(review => review.comment || '')
         
-        console.log(`📦 Processing ${texts.length} reviews in batches of ${batchSize}`)
+        
       
       // Process all reviews in the time range
       for (let i = 0; i < texts.length; i += batchSize) {
@@ -226,24 +223,24 @@ export class SentimentWorkflowService {
           
           const batchNumber = Math.floor(i / batchSize) + 1
           const totalBatches = Math.ceil(texts.length / batchSize)
-          console.log(`✅ Processed batch ${batchNumber}/${totalBatches} (${Math.round((batchNumber / totalBatches) * 100)}%)`)
+        
           
           // Force garbage collection between batches to prevent memory issues
           if (global.gc && batchNumber % 2 === 0) { // GC every 2 batches for aggressive memory management
-            console.log(`🧹 Running garbage collection...`)
+            
             global.gc()
           }
           
           
           // Add small delay between batches to prevent memory overload
           if (batchNumber % 5 === 0) {
-            console.log(`⏸️ Pausing briefly to prevent memory overload...`)
+            
             await new Promise(resolve => setTimeout(resolve, 200))
           }
           
           // Clear any large objects from memory
           if (batchNumber % 10 === 0) {
-            console.log(`🧹 Clearing memory caches...`)
+            
             if (global.gc) global.gc()
             // Clear any potential memory leaks
             if (typeof global.gc === 'function') {
@@ -273,7 +270,7 @@ export class SentimentWorkflowService {
       lastProcessedAt: new Date()
     }
     
-    console.log(`📊 Processing Stats: ${processedCount} processed, ${remainingCount} remaining`)
+    
 
     // Save to database
     await SentimentAnalytics.findOneAndUpdate(
@@ -282,8 +279,6 @@ export class SentimentWorkflowService {
       { upsert: true, new: true }
     )
 
-    console.log(`✅ Sentiment analysis completed for ${entityType}: ${entityId}`)
-    console.log(`📊 Processing Stats: ${analytics.processingStats.processedInThisRun} processed, ${analytics.processingStats.remainingToProcess} remaining`)
     return analytics
   }
 

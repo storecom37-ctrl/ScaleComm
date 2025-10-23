@@ -38,7 +38,7 @@ export default function BrandPage() {
 
   const handleBrandDelete = (brandId: string) => {
     // Handle brand deletion - table already handles the removal
-    console.log('Brand deleted:', brandId)
+    
   }
 
   return (

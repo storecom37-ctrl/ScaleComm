@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (tokens) {
       // Get all account IDs that the current user has access to
       accessibleAccountIds = await getAllBrandAccountIds()
-      console.log('🔍 Performance API - Accessible GMB Account IDs:', accessibleAccountIds)
+      
     }
     
     // Build query
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     } else if (accessibleAccountIds.length > 0) {
       // Only show performance data for stores linked to accessible GMB accounts
       query.accountId = { $in: accessibleAccountIds }
-      console.log('🔍 Performance API - Filtering by accessible account IDs:', accessibleAccountIds)
+      
     } else {
       // If no GMB authentication, return empty data
       return NextResponse.json({
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
       })
     }
     
-    console.log('🔍 Performance API - Query filters:', query)
+    
     
     // Debug: Check what performance data exists for different days
     if (days) {
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         { $match: debugQuery },
         { $group: { _id: '$period.dateRange.days', count: { $sum: 1 } } }
       ])
-      console.log('🔍 Performance API - Data available by days:', countByDays)
+      
     }
     
     if (periodType) query['period.periodType'] = periodType
@@ -94,11 +94,11 @@ export async function GET(request: NextRequest) {
         ...(accountId ? { accountId } : accessibleAccountIds.length > 0 ? { accountId: { $in: accessibleAccountIds } } : {})
       })
       
-      console.log(`🔍 Performance API - Exact match for ${days} days: ${exactMatchCount} records`)
+      
       
       // If no exact match, fallback to date range filtering
       if (exactMatchCount === 0) {
-        console.log(`🔍 Performance API - No exact match for ${days} days, falling back to date range filtering`)
+        
         delete query['period.dateRange.days']
         
         const endTime = new Date()

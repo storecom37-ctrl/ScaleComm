@@ -138,7 +138,7 @@ async function syncGmbData(tokens: any, controller: ReadableStreamDefaultControl
         })
         
         await brand.save()
-        console.log('✅ Auto-created brand:', brand.name)
+        
       } else {
         // Update existing brand with GMB connection
         await Brand.findByIdAndUpdate(brand._id, {
@@ -147,7 +147,7 @@ async function syncGmbData(tokens: any, controller: ReadableStreamDefaultControl
           'settings.gmbIntegration.gmbAccountName': accountData.name,
           'settings.gmbIntegration.lastSyncAt': new Date()
         })
-        console.log('✅ Updated brand with GMB connection:', brand.name)
+        
       }
       
       return brand
@@ -256,7 +256,7 @@ async function syncGmbData(tokens: any, controller: ReadableStreamDefaultControl
         }
       })
       
-      console.log(`🔄 Saving ${dataType} to database...${retryCount > 0 ? ` (Retry ${retryCount}/${maxRetries})` : ''}`)
+    
       await connectDB()
 
       let stats: any = {}

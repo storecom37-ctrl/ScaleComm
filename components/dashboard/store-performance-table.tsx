@@ -80,7 +80,7 @@ export function StorePerformanceTable({
   })
 
 
-  console.log("storeWiseData", storeWiseData);
+  
 
   // Filter and sort store data
   const filteredStores = Object.values(storeWiseData || {})

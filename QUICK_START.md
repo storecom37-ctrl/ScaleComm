@@ -26,7 +26,7 @@ NEXTAUTH_URL=http://localhost:3000
 
 **Generate JWT_SECRET**:
 ```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+node -e ".randomBytes(32).toString('hex'))"
 ```
 
 ### Step 3: Start Development Server

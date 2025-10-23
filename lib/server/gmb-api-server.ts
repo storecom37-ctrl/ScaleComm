@@ -157,7 +157,6 @@ export class GmbApiServerService {
   // Use actual location ID instead of hardcoded override
   private getWorkingLocationId(originalLocationId: string): string {
     // Return the original location ID to ensure each store gets its own data
-    console.log(`📍 Using actual location ID: ${originalLocationId}`)
     return originalLocationId
   }
 
@@ -258,7 +257,6 @@ export class GmbApiServerService {
         throw new Error('No access token available - please reconnect to GMB')
       }
 
-      console.log('🔍 Fetching GMB accounts...')
       
       // Use the Business Information API to get accounts
       const response = await this.makeRequest('https://mybusinessbusinessinformation.googleapis.com/v1/accounts', {
@@ -281,7 +279,6 @@ export class GmbApiServerService {
       }
 
       const data = await response.json()
-      console.log(`✅ Successfully fetched ${data.accounts?.length || 0} GMB accounts`)
       return data.accounts || []
     } catch (error) {
       console.error('❌ Error fetching GMB accounts:', error)
@@ -297,8 +294,7 @@ export class GmbApiServerService {
    */
   async getCategories(regionCode: string = 'US', languageCode: string = 'en-US'): Promise<any[]> {
     try {
-      console.log(`Fetching GMB categories for region: ${regionCode}, language: ${languageCode}`)
-      
+     
       const categoriesUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/categories?regionCode=${regionCode}&languageCode=${languageCode}&view=FULL`
       
       const response = await this.makeRequest(categoriesUrl, {
@@ -316,12 +312,8 @@ export class GmbApiServerService {
       }
 
       const data = await response.json()
-      console.log(`✅ Fetched ${data.categories?.length || 0} GMB categories`)
       
-      // Log some sample categories for debugging
-      if (data.categories && data.categories.length > 0) {
-        console.log(`📋 Sample categories from API:`, data.categories.slice(0, 3).map((c: any) => ({ name: c.name, displayName: c.displayName })))
-      }
+      
       
       return data.categories || []
     } catch (error) {
@@ -335,7 +327,6 @@ export class GmbApiServerService {
    */
   async findBestCategoryMatch(userCategory: string, regionCode: string = 'US', languageCode: string = 'en-US'): Promise<string | null> {
     try {
-      console.log(`🔍 Starting category matching for: "${userCategory}"`)
       
       // First, try common mappings (faster and more reliable)
       const commonMappings: { [key: string]: string } = {
@@ -364,25 +355,17 @@ export class GmbApiServerService {
       const normalizedUserCategory = userCategory.toLowerCase().trim()
       const mappedCategory = commonMappings[normalizedUserCategory]
       if (mappedCategory) {
-        console.log(`✅ Mapped category: ${userCategory} -> ${mappedCategory}`)
         return mappedCategory
       }
       
       // If no common mapping, try to fetch from GMB API
-      console.log(`🔍 No common mapping found, fetching from GMB API...`)
       const categories = await this.getCategories(regionCode, languageCode)
-      console.log(`📋 Fetched ${categories.length} categories from GMB API`)
-      
-      // Log first few categories for debugging
-      if (categories.length > 0) {
-        console.log(`📋 Sample categories:`, categories.slice(0, 5).map(c => ({ name: c.name, displayName: c.displayName })))
-      }
+     
       
       // First, try exact match
       for (const category of categories) {
         if (category.displayName?.toLowerCase() === normalizedUserCategory) {
-          console.log(`✅ Exact category match found: ${category.displayName} -> ${category.name}`)
-          return category.name
+           return category.name
         }
       }
       
@@ -390,18 +373,15 @@ export class GmbApiServerService {
       for (const category of categories) {
         if (category.displayName?.toLowerCase().includes(normalizedUserCategory) || 
             normalizedUserCategory.includes(category.displayName?.toLowerCase() || '')) {
-          console.log(`✅ Partial category match found: ${category.displayName} -> ${category.name} for ${userCategory}`)
           return category.name
         }
       }
       
-      console.log(`⚠️ No category match found for: ${userCategory}`)
       return null
     } catch (error) {
       console.error('Error finding category match:', error)
       // Return a fallback category if API fails
-      console.log(`🔄 Using fallback category due to error`)
-      return 'gcid:business_service' // Generic business category
+    return 'gcid:business_service' // Generic business category
     }
   }
 
@@ -410,8 +390,7 @@ export class GmbApiServerService {
    */
   async getLocation(locationName: string): Promise<any> {
     try {
-      console.log(`Fetching single location: ${locationName}`)
-      
+     
       // Extract location ID from locationName format: accounts/{accountId}/locations/{locationId}
       const pathParts = locationName.split('/')
       if (pathParts.length !== 4 || pathParts[0] !== 'accounts' || pathParts[2] !== 'locations') {
@@ -422,8 +401,7 @@ export class GmbApiServerService {
       const readMask = 'name,languageCode,storeCode,title,phoneNumbers,categories,storefrontAddress,websiteUri,regularHours,specialHours,serviceArea,labels,adWordsLocationExtensions,latlng,openInfo,metadata,profile,relationshipData,moreHours,serviceItems'
       const url = `https://mybusinessbusinessinformation.googleapis.com/v1/locations/${locationId}?readMask=${readMask}`
       
-      console.log(`Fetching location at: ${url}`)
-      
+   
       const response = await this.makeRequest(url, {
         headers: {
           'Authorization': `Bearer ${this.authClient.credentials.access_token}`
@@ -437,7 +415,6 @@ export class GmbApiServerService {
       }
 
       const location = await response.json()
-      console.log(`Successfully fetched location: ${location.title}`)
       return location
     } catch (error) {
       console.error('Error fetching location:', error)
@@ -456,8 +433,7 @@ export class GmbApiServerService {
       const pageSize = 100 // Maximum allowed by GMB API
       let pageCount = 0
       
-      console.log(`📍 Starting to fetch locations for account: ${accountId}`)
-      
+    
       do {
         pageCount++
         // Build URL with pagination parameters
@@ -466,7 +442,6 @@ export class GmbApiServerService {
           url += `&pageToken=${pageToken}`
         }
 
-        console.log(`📄 Fetching page ${pageCount} (current total: ${allLocations.length} locations)`)
         
         // Use the Business Information API to get locations
         const response = await this.makeRequest(url, {
@@ -484,39 +459,16 @@ export class GmbApiServerService {
         const data = await response.json()
         const locations = data.locations || []
         allLocations = [...allLocations, ...locations]
-        
-        console.log(`📄 Page ${pageCount}: Fetched ${locations.length} locations (total: ${allLocations.length})`)
-        
+    
         // Debug: Log metadata for first location to check mapsUri
-        if (locations.length > 0 && pageCount === 1) {
-          const firstLocation = locations[0]
-          console.log('🔍 DEBUG - Raw GMB API Response for first location:', {
-            name: firstLocation.title,
-            hasMetadata: !!firstLocation.metadata,
-            metadata: firstLocation.metadata,
-            mapsUri: firstLocation.metadata?.mapsUri,
-            allMetadataKeys: firstLocation.metadata ? Object.keys(firstLocation.metadata) : [],
-            fullLocationKeys: Object.keys(firstLocation),
-            // Check for alternative maps URL fields
-            hasMapsUrl: !!firstLocation.mapsUrl,
-            hasGoogleMapsUrl: !!firstLocation.googleMapsUrl,
-            hasPlaceId: !!firstLocation.placeId,
-            // Log the complete metadata object
-            completeMetadata: JSON.stringify(firstLocation.metadata, null, 2)
-          })
-        }
+ 
         
         pageToken = data.nextPageToken
         
-        if (pageToken) {
-          console.log(`📄 More pages available, nextPageToken exists`)
-        } else {
-          console.log(`📄 No more pages, this was the last page`)
-        }
+        
       } while (pageToken)
 
-      console.log(`✅ Completed fetching locations: ${allLocations.length} total locations across ${pageCount} pages`)
-      
+
       return allLocations.map((location: any) => {
         // The location.name from the API comes as "locations/{locationId}"
         // We need to construct the full path as "accounts/{accountId}/locations/{locationId}"
@@ -602,8 +554,7 @@ export class GmbApiServerService {
 
   async getReviews(locationName: string): Promise<GmbReview[]> {
     try {
-      console.log(`Attempting to fetch reviews for location: ${locationName}`)
-  
+    
       // Validate and parse locationName
       // Expected format: accounts/{accountId}/locations/{locationId}
       const pathParts = locationName.split('/')
@@ -617,8 +568,7 @@ export class GmbApiServerService {
       const accountId = pathParts[1]
       const locationId = pathParts[3]
   
-      console.log(`Parsed accountId: ${accountId}, locationId: ${locationId}`)
-  
+     
       // Candidate endpoints (you can add alternatives here if needed)
       const reviewsUrls = [
         `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews`
@@ -639,8 +589,7 @@ export class GmbApiServerService {
   
       // Try each endpoint until one works
       for (const baseUrl of reviewsUrls) {
-        console.log(`Trying reviews endpoint: ${baseUrl}`)
-  
+       
         try {
           let allReviews: any[] = []
           let pageToken: string | undefined = undefined
@@ -654,8 +603,7 @@ export class GmbApiServerService {
             if (pageToken) url.searchParams.set('pageToken', pageToken)
   
             const reviewsUrl = url.toString()
-            console.log(`Fetching reviews page: ${reviewsUrl}`)
-  
+           
             const response = await this.makeRequest(reviewsUrl, {
               headers: {
                 Authorization: `Bearer ${accessToken}`
@@ -664,8 +612,7 @@ export class GmbApiServerService {
   
             if (response.ok) {
               const data = await response.json()
-              console.log(`GMB Reviews Response for ${locationName}:`, JSON.stringify(data, null, 2))
-  
+             
               const pageReviews = Array.isArray(data.reviews) ? data.reviews : []
               allReviews = allReviews.concat(pageReviews)
   
@@ -690,22 +637,14 @@ export class GmbApiServerService {
               console.warn(`GMB Reviews API Error for ${locationName} at ${reviewsUrl}:`, response.status, errorText)
   
               // If 403/404, try next endpoint; otherwise also try next endpoint
-              if (response.status === 403 || response.status === 404) {
-                console.log(`Reviews API not available at ${reviewsUrl} (status ${response.status}), trying next endpoint...`)
-                break
-              } else {
-                console.log(`API returned ${response.status}, trying next endpoint...`)
-                break
-              }
+             
             }
           } // end pagination loop
   
           // If we have success (even zero reviews), set final reviews and exit endpoint loop
           if (successfulEndpoint === baseUrl) {
             reviews = allReviews
-            console.log(
-              `GMB API: Found ${reviews.length} total reviews for location ${locationName} using endpoint: ${baseUrl}`
-            )
+            
           }
         } catch (err) {
           const errorObj = {
@@ -741,20 +680,13 @@ export class GmbApiServerService {
       }
   
        // Map results to your GmbReview shape
-       console.log(`📝 Mapping ${reviews.length} reviews from GMB API...`)
-       
+      
        const mappedReviews: GmbReview[] = reviews.map((review: any) => {
          // Log each review's reply status
          const hasReviewReply = !!review.reviewReply
          const hasResponse = !!review.response
          
-         if (hasReviewReply || hasResponse) {
-           console.log(`📋 Review ${review.reviewId} has reply:`, {
-             hasReviewReply,
-             hasResponse,
-             replyComment: (review.reviewReply || review.response)?.comment?.substring(0, 50)
-           })
-         }
+     
          
          // Convert Google's string star rating to number
          let numericRating = 0
@@ -800,8 +732,7 @@ export class GmbApiServerService {
           }
        })
   
-      console.log(`GMB API: Successfully returned ${mappedReviews.length} mapped reviews from ${successfulEndpoint}`)
-      return mappedReviews
+       return mappedReviews
     } catch (error) {
       console.error(`Error fetching reviews for ${locationName}:`, error)
       throw error
@@ -813,9 +744,7 @@ export class GmbApiServerService {
    */
   async replyToReview(reviewName: string, comment: string): Promise<boolean> {
     try {
-      console.log(`Replying to review: ${reviewName}`)
-      console.log(`Reply comment: ${comment}`)
-      
+    
       // Get access token
       const accessToken = this.authClient.credentials.access_token
       if (!accessToken) {
@@ -838,7 +767,6 @@ export class GmbApiServerService {
       
       // Use the correct GMB API v4 endpoint for replying to reviews
       const replyUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews/${reviewId}/reply`
-      console.log(`Replying to review at: ${replyUrl}`)
       
       const response = await this.makeRequest(replyUrl, {
         method: 'PUT',
@@ -858,8 +786,6 @@ export class GmbApiServerService {
       }
 
       const data = await response.json()
-      console.log(`✅ Reply posted successfully for review: ${reviewName}`)
-      console.log('Reply response:', data)
       
       return true
     } catch (error) {
@@ -870,7 +796,6 @@ export class GmbApiServerService {
 
   async getPosts(locationName: string): Promise<GmbPost[]> {
     try {
-      console.log(`Attempting to fetch posts for location: ${locationName}`)
       
       // Extract account ID and location ID from locationName 
       // Format: accounts/112022557985287772374/locations/1234567890
@@ -883,12 +808,11 @@ export class GmbApiServerService {
       const accountId = pathParts[1]
       const locationId = pathParts[3]
       
-      console.log(`Parsed accountId: ${accountId}, locationId: ${locationId}`)
       
       // Use the correct v4 Posts API endpoint
       // Format: accounts/{accountId}/locations/{locationId}/localPosts
       const postsUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/localPosts`
-      console.log(`Fetching posts from: ${postsUrl}`)
+     
       
       const response = await this.makeRequest(postsUrl, {
         headers: {
@@ -902,16 +826,14 @@ export class GmbApiServerService {
         
         // If API returns 403/404, posts API may not be available for this account
         if (response.status === 403 || response.status === 404) {
-          console.log(`Posts API not available for location ${locationName}`)
-          return []
+           return []
         }
         
         throw new Error(`HTTP error! status: ${response.status} - ${errorText}`)
       }
 
       const data = await response.json()
-      console.log(`GMB Posts Response for ${locationName}:`, JSON.stringify(data, null, 2))
-      const posts = data.localPosts || []
+       const posts = data.localPosts || []
       
       return posts.map((post: any) => ({
         id: post.name || `post-${Date.now()}-${Math.random()}`,
@@ -960,8 +882,6 @@ export class GmbApiServerService {
     }>
   }): Promise<GmbPost | null> {
     try {
-      console.log(`Creating post for location: ${locationName}`)
-      
       // Extract account ID and location ID from locationName 
       const pathParts = locationName.split('/')
       if (pathParts.length !== 4 || pathParts[0] !== 'accounts' || pathParts[2] !== 'locations') {
@@ -973,8 +893,7 @@ export class GmbApiServerService {
       const locationId = pathParts[3]
       
       const createPostUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/localPosts`
-      console.log(`Creating post at: ${createPostUrl}`)
-      
+     
       const response = await this.makeRequest(createPostUrl, {
         method: 'POST',
         headers: {
@@ -991,7 +910,6 @@ export class GmbApiServerService {
       }
 
       const data = await response.json()
-      console.log(`GMB Create Post Response for ${locationName}:`, JSON.stringify(data, null, 2))
       
       return {
         id: data.name || `post-${Date.now()}-${Math.random()}`,
@@ -1037,8 +955,7 @@ export class GmbApiServerService {
     }>
   }): Promise<GmbPost | null> {
     try {
-      console.log(`Updating post: ${postId}`)
-      
+     
       // Extract account ID, location ID, and post ID from postId
       // Format: accounts/{accountId}/locations/{locationId}/localPosts/{postId}
       const pathParts = postId.split('/')
@@ -1052,7 +969,6 @@ export class GmbApiServerService {
       const actualPostId = pathParts[5]
       
       const updatePostUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/localPosts/${actualPostId}`
-      console.log(`Updating post at: ${updatePostUrl}`)
       
       const response = await this.makeRequest(updatePostUrl, {
         method: 'PUT',
@@ -1070,7 +986,6 @@ export class GmbApiServerService {
       }
 
       const data = await response.json()
-      console.log(`GMB Update Post Response for ${postId}:`, JSON.stringify(data, null, 2))
       
       return {
         id: data.name || postId,
@@ -1094,7 +1009,6 @@ export class GmbApiServerService {
 
   async getPost(postId: string): Promise<GmbPost | null> {
     try {
-      console.log(`Fetching post: ${postId}`)
       
       // Extract account ID, location ID, and post ID from postId
       // Format: accounts/{accountId}/locations/{locationId}/localPosts/{postId}
@@ -1109,8 +1023,7 @@ export class GmbApiServerService {
       const actualPostId = pathParts[5]
       
       const getPostUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/localPosts/${actualPostId}`
-      console.log(`Fetching post from: ${getPostUrl}`)
-      
+     
       const response = await this.makeRequest(getPostUrl, {
         method: 'GET',
         headers: {
@@ -1125,8 +1038,7 @@ export class GmbApiServerService {
       }
 
       const postData = await response.json()
-      console.log(`GMB Post ${postId} fetched successfully`)
-      
+     
       return {
         id: postId,
         summary: postData.summary,
@@ -1149,7 +1061,6 @@ export class GmbApiServerService {
 
   async deletePost(postId: string): Promise<boolean> {
     try {
-      console.log(`Deleting post: ${postId}`)
       
       // Extract account ID, location ID, and post ID from postId
       // Format: accounts/{accountId}/locations/{locationId}/localPosts/{postId}
@@ -1164,8 +1075,7 @@ export class GmbApiServerService {
       const actualPostId = pathParts[5]
       
       const deletePostUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/localPosts/${actualPostId}`
-      console.log(`Deleting post at: ${deletePostUrl}`)
-      
+     
       const response = await this.makeRequest(deletePostUrl, {
         method: 'DELETE',
         headers: {
@@ -1179,8 +1089,7 @@ export class GmbApiServerService {
         throw new Error(`HTTP error! status: ${response.status} - ${errorText}`)
       }
 
-      console.log(`GMB Post ${postId} deleted successfully`)
-      return true
+       return true
     } catch (error) {
       console.error(`Error deleting post ${postId}:`, error)
       throw error
@@ -1189,8 +1098,7 @@ export class GmbApiServerService {
 
 async getInsights(locationName: string, startDate: string, endDate: string): Promise<GmbInsights | null> {
   try {
-    console.log(`Attempting to fetch insights for ${locationName} from ${startDate} to ${endDate}`)
-
+ 
     // Validate locationName (accounts/{accountId}/locations/{locationId})
     const parts = locationName.split('/')
     if (parts.length !== 4 || parts[0] !== 'accounts' || parts[2] !== 'locations') {
@@ -1228,8 +1136,7 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
       throw new Error(`Failed to create valid date objects from: startDate=${startDate}, endDate=${endDate}`)
     }
 
-    console.log(`Using date range: ${startDateObj.year}-${startDateObj.month}-${startDateObj.day} to ${endDateObj.year}-${endDateObj.month}-${endDateObj.day}`)
-
+  
     // Try to fetch insights using multiple approaches with fallbacks
     let dailyMetrics: any[] = []
     let websiteClicksSeries = null
@@ -1363,7 +1270,6 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
 
     // If we still have no data, create a minimal insights object with zeros
     if (dailyMetrics.length === 0) {
-      console.log(`No performance data available for ${locationName}, returning zero values`)
       return {
         locationId: locationName,
         period: {
@@ -1445,15 +1351,7 @@ async getInsights(locationName: string, startDate: string, endDate: string): Pro
       callClicksSeries
     }
 
-    console.log(`✅ Insights fetched for ${locationName.split('/').pop()}:`, {
-      views: totalViews,
-      websiteClicks: totalWebsiteClicks,
-      callClicks: totalCallClicks,
-      desktopSearchImpressions: totalDesktopSearchImpressions,
-      mobileSearchImpressions: totalMobileSearchImpressions,
-      desktopMapsImpressions: totalDesktopMapsImpressions,
-      mobileMapsImpressions: totalMobileMapsImpressions
-    })
+
 
     return insights
   } catch (error) {
@@ -1502,8 +1400,7 @@ async getSearchKeywords(
   endMonth: number
 ): Promise<GmbSearchKeyword[]> {
   try {
-    console.log(`Attempting to fetch search keywords for ${locationName} from ${startYear}-${startMonth} to ${endYear}-${endMonth}`)
-
+  
     // Validate locationName (accounts/{accountId}/locations/{locationId})
     const parts = locationName.split('/')
     if (parts.length !== 4 || parts[0] !== 'accounts' || parts[2] !== 'locations') {
@@ -1538,8 +1435,7 @@ async getSearchKeywords(
     })
 
     const fullUrl = `${endpoint}?${params.toString()}`
-    console.log('Calling search keywords endpoint:', fullUrl)
-
+  
     const response = await this.makeRequest(fullUrl, {
       method: 'GET',
       headers: {
@@ -1566,8 +1462,7 @@ async getSearchKeywords(
     }
 
     const data = await response.json()
-    console.log('Search keywords response:', JSON.stringify(data, null, 2))
-
+  
     // Parse the response and convert to GmbSearchKeyword format
     const searchKeywords: GmbSearchKeyword[] = []
     
@@ -1620,7 +1515,6 @@ async getSearchKeywords(
       }
     }
 
-    console.log(`Search keywords API: Found ${searchKeywords.length} keyword records for ${locationName}`)
     return searchKeywords
 
   } catch (error) {
@@ -1650,8 +1544,7 @@ async getMultiDailyMetricsTimeSeries(
   endDate: { year: number; month: number; day: number }
 ): Promise<GmbDailyMetrics[]> {
   try {
-    console.log(`Fetching multi daily metrics for ${locationName}:`, metrics)
-
+  
     // Extract locationId from locationName
     const parts = locationName.split('/')
     if (parts.length !== 4 || parts[0] !== 'accounts' || parts[2] !== 'locations') {
@@ -1668,8 +1561,7 @@ async getMultiDailyMetricsTimeSeries(
       throw new Error('No access token available')
     }
 
-    console.log(`Using access token: ${accessToken.substring(0, 20)}...`)
-
+  
     // Build endpoint URL
     const baseUrl = 'https://businessprofileperformance.googleapis.com/v1'
     const endpoint = `${baseUrl}/locations/${locationId}:fetchMultiDailyMetricsTimeSeries`
@@ -1691,8 +1583,7 @@ async getMultiDailyMetricsTimeSeries(
     params.append('dailyRange.end_date.day', endDate.day.toString())
 
     const fullUrl = `${endpoint}?${params.toString()}`
-    console.log('Calling multi daily metrics endpoint:', fullUrl)
-
+    
     const response = await this.makeRequest(fullUrl, {
       method: 'GET',
       headers: {
@@ -1733,7 +1624,6 @@ async getMultiDailyMetricsTimeSeries(
           currentDate.setDate(currentDate.getDate() + 1)
         }
         
-        console.log(`Returning ${zeroMetrics.length} zero-value daily metrics due to 403 permission error`)
         return zeroMetrics
       }
       
@@ -1749,28 +1639,23 @@ async getMultiDailyMetricsTimeSeries(
         
         
         if (errorText.includes('BUSINESS_IMPRESSIONS_DESKTOP_SEARCH')) {
-          console.log('Removing BUSINESS_IMPRESSIONS_DESKTOP_SEARCH metric...')
           validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH')
         }
         
         if (errorText.includes('BUSINESS_IMPRESSIONS_MOBILE_SEARCH')) {
-          console.log('Removing BUSINESS_IMPRESSIONS_MOBILE_SEARCH metric...')
           validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_MOBILE_SEARCH')
         }
         
         if (errorText.includes('BUSINESS_IMPRESSIONS_DESKTOP_MAPS')) {
-          console.log('Removing BUSINESS_IMPRESSIONS_DESKTOP_MAPS metric...')
-          validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_DESKTOP_MAPS')
+        validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_DESKTOP_MAPS')
         }
         
         if (errorText.includes('BUSINESS_IMPRESSIONS_MOBILE_MAPS')) {
-          console.log('Removing BUSINESS_IMPRESSIONS_MOBILE_MAPS metric...')
-          validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_MOBILE_MAPS')
+        validMetrics = validMetrics.filter(m => m !== 'BUSINESS_IMPRESSIONS_MOBILE_MAPS')
         }
         
         if (validMetrics.length > 0 && validMetrics.length !== metrics.length) {
-          console.log(`Retrying with ${validMetrics.length} valid metrics:`, validMetrics)
-          return this.getMultiDailyMetricsTimeSeries(locationName, validMetrics, startDate, endDate)
+       return this.getMultiDailyMetricsTimeSeries(locationName, validMetrics, startDate, endDate)
         }
         
         return []
@@ -1780,8 +1665,7 @@ async getMultiDailyMetricsTimeSeries(
     }
 
     const data = await response.json()
-    console.log('Multi daily metrics response:', JSON.stringify(data, null, 2))
-
+  
     // Parse response into GmbDailyMetrics format
     const dailyMetrics: GmbDailyMetrics[] = []
     
@@ -1835,11 +1719,9 @@ async getMultiDailyMetricsTimeSeries(
       dailyMetrics.push(...metricsMap.values())
     }
 
-    console.log(`Multi daily metrics: Found ${dailyMetrics.length} daily records`)
     
     // Log sample data for debugging
     if (dailyMetrics.length > 0) {
-      console.log('Sample daily metrics data:', JSON.stringify(dailyMetrics.slice(0, 3), null, 2))
       
       // Calculate totals for verification
       let totalWebsiteClicks = 0
@@ -1854,13 +1736,7 @@ async getMultiDailyMetricsTimeSeries(
         totalMobileImpressions += metric.metrics.mobileMapsImpressions || 0
       })
       
-      console.log('Aggregated totals:', {
-        totalWebsiteClicks,
-        totalCallClicks,
-        totalDesktopImpressions,
-        totalMobileImpressions,
-        totalImpressions: totalDesktopImpressions + totalMobileImpressions
-      })
+   
     }
     
     return dailyMetrics.sort((a, b) => {
@@ -1892,8 +1768,7 @@ async getDailyMetricsTimeSeries(
   endDate: { year: number; month: number; day: number }
 ): Promise<GmbDailyMetricsTimeSeries | null> {
   try {
-    console.log(`Fetching daily metric time series for ${locationName}: ${metric}`)
-
+   
     // Extract locationId
     const parts = locationName.split('/')
     if (parts.length !== 4 || parts[0] !== 'accounts' || parts[2] !== 'locations') {
@@ -1926,8 +1801,7 @@ async getDailyMetricsTimeSeries(
     })
 
     const fullUrl = `${endpoint}?${params.toString()}`
-    console.log('Calling daily metrics time series endpoint:', fullUrl)
-
+   
     const response = await this.makeRequest(fullUrl, {
       method: 'GET',
       headers: {
@@ -1951,20 +1825,18 @@ async getDailyMetricsTimeSeries(
       if (response.status === 400) {
         // Check if it's a metric-specific error
         if (errorText.includes('Invalid value at \'daily_metric\'')) {
-          console.log(`Metric '${metric}' not supported for this location, skipping...`)
-          return null
+           return null
         }
         console.warn('Invalid request for daily metrics time series:', errorText)
         return null
       }
       
-      console.warn(`Daily metrics time series API error (${response.status}):`, errorText)
+
       throw new Error(`Daily metrics time series request failed: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
-    console.log('Daily metrics time series response:', JSON.stringify(data, null, 2))
-
+   
     // Parse response
     if (data.timeSeries && data.timeSeries.datedValues) {
       const dailyValues = data.timeSeries.datedValues.map((datedValue: any) => ({
@@ -2040,7 +1912,6 @@ private mapMetricTypeToKey(metricType: string): string {
     }
   }): Promise<GmbLocation | null> {
     try {
-      console.log(`Creating new location for account: ${accountName}`)
       
       // Extract account ID from accountName - handle both formats
       let accountId: string
@@ -2058,8 +1929,7 @@ private mapMetricTypeToKey(metricType: string): string {
       }
       
       const createLocationUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${accountId}/locations`
-      console.log(`Creating location at: ${createLocationUrl}`)
-      
+    
       const response = await this.makeRequest(createLocationUrl, {
         method: 'POST',
         headers: {
@@ -2076,7 +1946,6 @@ private mapMetricTypeToKey(metricType: string): string {
       }
 
       const data = await response.json()
-      console.log(`GMB Create Location Response:`, JSON.stringify(data, null, 2))
       
       // Extract location ID from the response
       const locationId = data.name?.replace('locations/', '')
@@ -2123,7 +1992,6 @@ private mapMetricTypeToKey(metricType: string): string {
     }
   }): Promise<GmbLocation | null> {
     try {
-      console.log(`Updating location: ${locationName}`)
       
       // Validate location name format and extract location ID
       const pathParts = locationName.split('/')
@@ -2136,13 +2004,11 @@ private mapMetricTypeToKey(metricType: string): string {
       
       // Use the correct API format: locations/{locationId}
       const updateLocationUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/locations/${locationId}`
-      console.log(`Updating location at: ${updateLocationUrl}`)
-      
+     
       // Build update mask for fields being updated
       const updateMask = Object.keys(locationData).join(',')
       const urlWithMask = `${updateLocationUrl}?updateMask=${updateMask}`
       
-      console.log('Update data:', JSON.stringify(locationData, null, 2))
       
       const response = await this.makeRequest(urlWithMask, {
         method: 'PATCH',
@@ -2160,11 +2026,9 @@ private mapMetricTypeToKey(metricType: string): string {
         // Parse GMB API errors for better error messages
         try {
           const errorData = JSON.parse(errorText)
-          console.log('Parsed error data:', errorData)
           
           if (errorData.error && errorData.error.details && Array.isArray(errorData.error.details)) {
             const reasons = errorData.error.details.map((detail: any) => detail.reason).filter(Boolean)
-            console.log('Error reasons:', reasons)
             
             if (reasons.includes('THROTTLED')) {
               throw new Error('Google My Business API rate limit exceeded. Please wait a moment and try again.')
@@ -2200,8 +2064,7 @@ private mapMetricTypeToKey(metricType: string): string {
       }
 
       const data = await response.json()
-      console.log(`GMB Update Location Response:`, JSON.stringify(data, null, 2))
-      
+     
       // Extract account ID from location name for the response
       const accountId = pathParts[1]
       
@@ -2227,8 +2090,7 @@ private mapMetricTypeToKey(metricType: string): string {
    */
   async deleteLocation(locationName: string): Promise<boolean> {
     try {
-      console.log(`Deleting location: ${locationName}`)
-      
+     
       // Extract account ID and location ID from locationName
       const pathParts = locationName.split('/')
       if (pathParts.length !== 4 || pathParts[0] !== 'accounts' || pathParts[2] !== 'locations') {
@@ -2240,8 +2102,7 @@ private mapMetricTypeToKey(metricType: string): string {
       const locationId = pathParts[3]
       
       const deleteLocationUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${accountId}/locations/${locationId}`
-      console.log(`Deleting location at: ${deleteLocationUrl}`)
-      
+     
       const response = await this.makeRequest(deleteLocationUrl, {
         method: 'DELETE',
         headers: {
@@ -2255,7 +2116,6 @@ private mapMetricTypeToKey(metricType: string): string {
         throw new Error(`HTTP error! status: ${response.status} - ${errorText}`)
       }
 
-      console.log(`GMB Location ${locationName} deleted successfully`)
       return true
     } catch (error) {
       console.error(`Error deleting location:`, error)
@@ -2286,8 +2146,7 @@ private mapMetricTypeToKey(metricType: string): string {
    */
   async fetchVerificationOptions(locationName: string, languageCode: string = 'en-US'): Promise<any> {
     try {
-      console.log(`Fetching verification options for location: ${locationName}`)
-      
+     
       // First, let's verify the location exists using Business Information API
       const pathParts = locationName.split('/')
       if (pathParts.length !== 4 || pathParts[0] !== 'accounts' || pathParts[2] !== 'locations') {
@@ -2297,8 +2156,7 @@ private mapMetricTypeToKey(metricType: string): string {
       const accountId = pathParts[1]
       const locationId = pathParts[3]
       
-      console.log(`Verifying location exists: accountId=${accountId}, locationId=${locationId}`)
-      
+     
       // Check if location exists using Business Information API
       try {
         const locationCheckUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/locations/${locationId}?readMask=name,title,metadata`
@@ -2315,7 +2173,6 @@ private mapMetricTypeToKey(metricType: string): string {
         
         
         const locationData = await locationCheckResponse.json()
-        console.log(`Location verified: ${locationData.name}`)
       } catch (locationError) {
         console.error(`Error verifying location ${locationId}:`, locationError)
         throw new Error(`Location ${locationId} verification failed: ${locationError instanceof Error ? locationError.message : 'Unknown error'}`)
@@ -2339,7 +2196,6 @@ private mapMetricTypeToKey(metricType: string): string {
 
       const data = await response.json();
 
-      console.log('Verification options fetched successfully:', data)
       return data
     } catch (error) {
       console.error('Error fetching verification options:', error)
@@ -2354,9 +2210,7 @@ private mapMetricTypeToKey(metricType: string): string {
    */
   async startVerification(locationName: string, verificationOptions: any): Promise<any> {
     try {
-      console.log(`Starting verification for location: ${locationName}`)
-      console.log('Verification options being sent to API:', JSON.stringify(verificationOptions, null, 2))
-      
+     
       // Extract just the location ID for the Verifications API
       // The Verifications API uses locations/{locationId} format, not accounts/{accountId}/locations/{locationId}
       const pathParts = locationName.split('/')
@@ -2373,10 +2227,7 @@ private mapMetricTypeToKey(metricType: string): string {
       if (!verificationOptions.languageCode) {
         verificationOptions.languageCode = 'en-US'
       }
-      
-      console.log('Verification URL:', verificationUrl)
-      console.log('Cleaned verification options:', verificationOptions)
-      
+     
       const response = await this.makeRequest(verificationUrl, {
         method: 'POST',
         headers: {
@@ -2396,8 +2247,7 @@ private mapMetricTypeToKey(metricType: string): string {
       }
 
       const data = await response.json()
-      console.log('Verification started successfully:', data)
-      return data
+     return data
     } catch (error) {
       console.error('Error starting verification:', error)
       throw error
@@ -2411,9 +2261,7 @@ private mapMetricTypeToKey(metricType: string): string {
    */
   async completeVerification(verificationName: string, completionDetails: any): Promise<any> {
     try {
-      console.log(`Completing verification: ${verificationName}`)
-      console.log('Completion details:', completionDetails)
-      
+       
       const verificationUrl = `https://mybusinessverifications.googleapis.com/v1/${verificationName}:complete`
       
       const response = await this.makeRequest(verificationUrl, {
@@ -2426,7 +2274,6 @@ private mapMetricTypeToKey(metricType: string): string {
       })
 
       const data = await response.json()
-      console.log('Verification completed successfully:', data)
       return data
     } catch (error) {
       console.error('Error completing verification:', error)
@@ -2440,7 +2287,6 @@ private mapMetricTypeToKey(metricType: string): string {
    */
   async listVerifications(locationName: string): Promise<any> {
     try {
-      console.log(`Listing verifications for location: ${locationName}`)
       
       // First, let's verify the location exists using Business Information API
       const pathParts = locationName.split('/')
@@ -2450,8 +2296,6 @@ private mapMetricTypeToKey(metricType: string): string {
       
       const accountId = pathParts[1]
       const locationId = pathParts[3]
-      
-      console.log(`Verifying location exists: accountId=${accountId}, locationId=${locationId}`)
       
       // Check if location exists using Business Information API
       try {
@@ -2468,7 +2312,6 @@ private mapMetricTypeToKey(metricType: string): string {
         }
         
         const locationData = await locationCheckResponse.json()
-        console.log(`Location verified: ${locationData.name}`)
       } catch (locationError) {
         console.error(`Error verifying location ${locationId}:`, locationError)
         throw new Error(`Location ${locationId} verification failed: ${locationError instanceof Error ? locationError.message : 'Unknown error'}`)
@@ -2487,7 +2330,6 @@ private mapMetricTypeToKey(metricType: string): string {
       })
 
       const data = await response.json()
-      console.log('Verifications listed successfully:', data)
       return data
     } catch (error) {
       console.error('Error listing verifications:', error)
@@ -2501,7 +2343,6 @@ private mapMetricTypeToKey(metricType: string): string {
    */
   async getVoiceOfMerchantState(locationName: string): Promise<any> {
     try {
-      console.log(`Getting Voice of Merchant state for location: ${locationName}`)
       
       // Extract just the location ID for the Verifications API
       // The Verifications API uses locations/{locationId} format, not accounts/{accountId}/locations/{locationId}
@@ -2521,7 +2362,6 @@ private mapMetricTypeToKey(metricType: string): string {
       })
 
       const data = await response.json()
-      console.log('Voice of Merchant state retrieved successfully:', data)
       return data
     } catch (error) {
       console.error('Error getting Voice of Merchant state:', error)

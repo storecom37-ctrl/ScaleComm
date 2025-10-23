@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     if (tokens) {
       // Get all account IDs that the current user has access to
       accessibleAccountIds = await getAllBrandAccountIds()
-      console.log('🔍 Impressions API - Accessible GMB Account IDs:', accessibleAccountIds)
+      
     }
 
     const { searchParams } = new URL(request.url)
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     // If no GMB authentication, return empty data
     if (accessibleAccountIds.length === 0) {
-      console.log('🔍 Impressions API - No accessible accounts, returning empty data')
+      
       return NextResponse.json({
         deviceInteraction: { desktop: 0, mobile: 0, total: 0 },
         platformImpressions: { maps: 0, search: 0, total: 0 },

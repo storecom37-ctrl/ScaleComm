@@ -32,7 +32,7 @@ export async function migrateStoreData(): Promise<MigrationStats> {
       errors: []
     }
     
-    console.log('Starting data migration from embedded to separate models...')
+    
     
     // Get all stores that have GMB integration data
     // Note: gmbData is no longer embedded in Store model - this migration is for legacy data
@@ -45,32 +45,32 @@ export async function migrateStoreData(): Promise<MigrationStats> {
       ]
     }).lean()
     
-    console.log(`Found ${stores.length} stores with GMB data to migrate`)
+    
     
     for (const store of stores) {
       try {
         stats.storesProcessed++
-        console.log(`Processing store ${stats.storesProcessed}/${stores.length}: ${store.name}`)
+        
         
         // Migrate Reviews
         // Note: This migration utility is for legacy data - embedded gmbData no longer exists
         // Reviews should now be synced directly from GMB API to separate Review collection
-        console.log(`Skipping embedded reviews migration for store ${store.name} - use GMB sync instead`)
+        
         
         // Migrate Posts
         // Note: This migration utility is for legacy data - embedded gmbData no longer exists
         // Posts should now be synced directly from GMB API to separate Post collection
-        console.log(`Skipping embedded posts migration for store ${store.name} - use GMB sync instead`)
+        
         
         // Migrate Performance Data
         // Note: This migration utility is for legacy data - embedded gmbData no longer exists
         // Performance data should now be synced directly from GMB API to separate Performance collection
-        console.log(`Skipping embedded performance data migration for store ${store.name} - use GMB sync instead`)
+        
         
         // Migrate Search Keywords
         // Note: This migration utility is for legacy data - embedded gmbData no longer exists
         // Search keywords should now be synced directly from GMB API to separate SearchKeyword collection
-        console.log(`Skipping embedded search keywords migration for store ${store.name} - use GMB sync instead`)
+        
         
       } catch (error) {
         const errorMsg = `Error processing store ${store.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -79,8 +79,8 @@ export async function migrateStoreData(): Promise<MigrationStats> {
       }
     }
     
-    console.log('Migration completed!')
-    console.log('Migration Stats:', stats)
+    
+    
     
     return stats
     
@@ -99,11 +99,11 @@ export async function cleanupEmbeddedData(): Promise<void> {
   try {
     await connectToDatabase()
     
-    console.log('Cleaning up old embedded GMB data...')
+    
     
     // Note: gmbData is no longer embedded in Store model
     // This function is kept for legacy compatibility but does nothing
-    console.log('No embedded gmbData to clean up - data is now in separate collections')
+    
     
   } catch (error) {
     console.error('Cleanup failed:', error)

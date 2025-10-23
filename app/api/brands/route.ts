@@ -45,33 +45,33 @@ export async function GET(request: NextRequest) {
       currentUserEmail = session.email
       userRole = session.role
       userBrandId = session.brandId || null
-      console.log('🔍 Session found - Email:', currentUserEmail, 'Role:', userRole, 'BrandId:', userBrandId)
+      
     } else {
       // Fall back to GMB tokens (legacy)
       const tokens = await getGmbTokensFromRequest()
       if (tokens) {
         currentUserEmail = await getCurrentUserEmail(tokens)
-        console.log('🔍 Using GMB tokens - Email:', currentUserEmail)
+        
       }
     }
     
     // Filter brands based on role
     if (userRole === 'super_admin') {
       // Super admin sees all brands
-      console.log('🔍 Super admin - showing all brands')
+      
       // No additional filtering needed
     } else if (userRole === 'owner' || userRole === 'manager') {
       // Owner/Manager only see their own brand
       if (userBrandId) {
         query._id = userBrandId
-        console.log('🔍 Owner/Manager - showing only brand:', userBrandId)
+        
       } else {
         // If no brandId, try to find by email
         query.$or = [
           { 'users.owner.email': currentUserEmail },
           { 'users.manager.email': currentUserEmail }
         ]
-        console.log('🔍 Owner/Manager - showing brands by email:', currentUserEmail)
+        
       }
     } else if (currentUserEmail) {
       // Legacy: If no role but have email, show brands owned by user
@@ -79,11 +79,11 @@ export async function GET(request: NextRequest) {
         { 'users.owner.email': currentUserEmail },
         { 'users.manager.email': currentUserEmail }
       ]
-      console.log('🔍 No role - showing brands owned by user email:', currentUserEmail)
+      
     } else {
       // If no authentication at all, show no brands
       query._id = { $exists: false }
-      console.log('🔍 No authentication - showing no brands')
+      
     }
 
     // Get brands with pagination - include GMB settings

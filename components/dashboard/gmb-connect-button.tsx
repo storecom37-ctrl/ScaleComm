@@ -115,7 +115,7 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
             if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6))
-                console.log('Sync progress:', data)
+                
                 
                 // Handle different message types
                 switch (data.type) {
@@ -227,7 +227,7 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
                         const statsData = await quickCheck.json()
                         if (statsData.success) {
                           dataReady = true
-                          console.log('✅ Data ready in', Date.now() - startTime, 'ms')
+                          
                           break
                         }
                       } catch (e) {
@@ -241,7 +241,7 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
                     }
                     
                     try {
-                      console.log('📥 Fetching all data from database after sync...')
+                      
                       
                       // Fetch all relevant data from database in parallel
                       const fetchPromises = [
@@ -260,15 +260,15 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
                       // Log the results
                       const [stores, locations, reviews, posts, stats, performance, brands, keywords] = results
                       
-                      console.log('✅ Database fetch complete:')
-                      console.log('  - Stores:', stores.status === 'fulfilled' ? stores.value.data?.length || 0 : 'failed')
-                      console.log('  - Locations:', locations.status === 'fulfilled' ? locations.value.data?.length || 0 : 'failed')
-                      console.log('  - Reviews:', reviews.status === 'fulfilled' ? reviews.value.data?.length || 0 : 'failed')
-                      console.log('  - Posts:', posts.status === 'fulfilled' ? posts.value.data?.length || 0 : 'failed')
-                      console.log('  - Stats:', stats.status === 'fulfilled' ? 'loaded' : 'failed')
-                      console.log('  - Performance:', performance.status === 'fulfilled' ? performance.value.data?.length || 0 : 'failed')
-                      console.log('  - Brands:', brands.status === 'fulfilled' ? brands.value.data?.length || 0 : 'failed')
-                      console.log('  - Keywords:', keywords.status === 'fulfilled' ? keywords.value.data?.length || 0 : 'failed')
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
                       
                       // Revalidate SWR caches so UI reflects fresh data
                       await mutate(
@@ -283,7 +283,7 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
                         { revalidate: true }
                       )
                       
-                      console.log('🔄 All data caches revalidated!')
+                      
                       
                       addNotification({
                         type: 'complete',
@@ -299,7 +299,7 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
                       })
                     }
                     
-                    console.log('GMB sync completed successfully!')
+                    
                     return
                     
                   case 'error':
@@ -352,7 +352,7 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
       sessionStorage.setItem('gmbAutoSynced', '1')
     } catch {}
 
-    console.log('🚀 Auto-triggering GMB sync after connection...')
+    
     hasAutoSyncedRef.current = true
     
     // Add notification for auto-sync

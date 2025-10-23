@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase()
     
-    console.log('🔄 Testing GMB data extraction with updated sync logic...')
+    
     
     // Sample GMB data structure (exactly like what you provided)
     const sampleGmbLocation = {
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       websiteUri: sampleGmbLocation.websiteUri
     }
     
-    console.log('📊 Extracted data:', JSON.stringify(extractedData, null, 2))
+    
     
     // Update one existing store with this test data
     const existingStore = await Store.findOne()
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         }
       })
       
-      console.log(`✅ Updated store: ${existingStore.name} with test GMB data`)
+      
       
       // Verify the update
       const updatedStore = await Store.findById(existingStore._id)

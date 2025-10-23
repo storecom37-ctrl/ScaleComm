@@ -26,7 +26,7 @@ export function useSentimentTrigger({
       try {
         const needsAnalysis = await sentimentWorkflow.needsAnalysis(entityId, type)
         if (needsAnalysis) {
-          console.log(`🔄 Auto-triggering sentiment analysis for ${type}: ${entityId}`)
+          
           await sentimentWorkflow.analyzeAndSave(entityId, type)
         }
       } catch (error) {

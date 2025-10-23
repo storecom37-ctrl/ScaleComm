@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     if (session) {
       userRole = session.role
       userBrandId = session.brandId || null
-      console.log('🔍 Stores API - Session found - Role:', userRole, 'BrandId:', userBrandId)
+      
     }
     
     // Get tokens from request to filter by accessible GMB accounts (legacy fallback)
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     if (tokens) {
       // Get all account IDs that the current user has access to
       accessibleAccountIds = await getAllBrandAccountIds()
-      console.log('🔍 Stores API - Accessible GMB Account IDs for current user:', accessibleAccountIds)
+      
     }
 
     // Build query
@@ -48,16 +48,16 @@ export async function GET(request: NextRequest) {
     // Filter stores based on role
     if (userRole === 'super_admin') {
       // Super admin sees all stores (no additional filtering)
-      console.log('🔍 Stores API - Super admin - showing all stores')
+
     } else if (userRole === 'owner' || userRole === 'manager') {
       // Owner/Manager only see stores for their brand
       if (userBrandId) {
         query.brandId = userBrandId
-        console.log('🔍 Stores API - Owner/Manager - showing stores for brand:', userBrandId)
+        
       } else {
         // If no brandId, show no stores
         query._id = { $exists: false }
-        console.log('🔍 Stores API - Owner/Manager without brandId - showing no stores')
+        
       }
     }
     
@@ -96,20 +96,20 @@ export async function GET(request: NextRequest) {
         { gmbLocationId: { $regex: gmbLocationId, $options: 'i' } }
       ]
       
-      console.log('🔍 Stores API - Filtering by GMB location ID with multiple formats:', gmbLocationId)
+      
     } else {
       // Filter by GMB account if provided, or by accessible accounts
       if (accountId) {
         query.gmbAccountId = accountId
-        console.log('🔍 Stores API - Filtering by specific account ID:', accountId)
+        
       } else if (accessibleAccountIds.length > 0) {
         // Only show stores that are linked to accessible GMB accounts
         query.gmbAccountId = { $in: accessibleAccountIds }
-        console.log('🔍 Stores API - Filtering by accessible account IDs:', accessibleAccountIds)
+        
       } else {
         // If no GMB authentication, show no stores (user needs to connect GMB first)
         query.gmbAccountId = 'no-access'
-        console.log('🔍 Stores API - No GMB authentication - showing no stores')
+        
       }
     }
 
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
 
-    console.log("body", body);
+    
 
     // Validate required fields
     const requiredFields = ['brandId', 'name', 'storeCode', 'email', 'address']
@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
     
     if (brand.settings?.gmbIntegration?.connected && brand.settings.gmbIntegration.gmbAccountId) {
       try {
-        console.log('🚀 Creating GMB location first before saving store to database')
+        
         
         // Get GMB tokens from request
         const gmbTokens = await getGmbTokensFromRequest()
@@ -235,11 +235,11 @@ export async function POST(request: NextRequest) {
         
         // Check if user provided a direct GMB category ID (starts with 'gcid:')
         if (body.gmbCategoryId && body.gmbCategoryId.startsWith('gcid:')) {
-          console.log(`✅ Using direct GMB category ID: ${body.gmbCategoryId}`)
+          
           validGmbCategory = body.gmbCategoryId
           categoryDisplayName = body.primaryCategory || body.gmbCategoryDisplayName || 'Business'
         } else if (body.primaryCategory) {
-          console.log(`🔍 Finding GMB category match for: ${body.primaryCategory}`)
+          
           validGmbCategory = await gmbService.findBestCategoryMatch(
             body.primaryCategory,
             body.address.countryCode || 'US',
@@ -247,13 +247,13 @@ export async function POST(request: NextRequest) {
           )
           
           if (!validGmbCategory) {
-            console.log(`⚠️ No valid GMB category found for: ${body.primaryCategory}, using fallback`)
+            
             // Use a generic business category as fallback
             validGmbCategory = 'gcid:business_service'
           }
         } else {
           // No category provided, use generic business category
-          console.log(`⚠️ No category provided, using default business category`)
+          
           validGmbCategory = 'gcid:business_service'
         }
         
@@ -290,7 +290,7 @@ export async function POST(request: NextRequest) {
           )
         }
 
-        console.log('✅ GMB location created successfully:', gmbLocation.name)
+        
       } catch (gmbError: any) {
         console.error('❌ Error creating GMB location:', gmbError)
         
@@ -314,7 +314,7 @@ export async function POST(request: NextRequest) {
     // Create store with better error handling - only after GMB succeeds
     try {
       const store = new Store(body)
-      console.log('🔍 Stores API - Creating store:', store)
+      
       await store.save()
       
       // Update store with GMB location ID if created
