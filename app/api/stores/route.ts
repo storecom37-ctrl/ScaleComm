@@ -159,12 +159,19 @@ export async function POST(request: NextRequest) {
 
     console.log("body", body);
 
-    // Validate required fields
-    const requiredFields = ['brandId', 'name', 'storeCode', 'email', 'address']
-    for (const field of requiredFields) {
+    // Validate required fields with user-friendly messages
+    const requiredFields = [
+      { field: 'brandId', message: 'Please select a brand for this store' },
+      { field: 'name', message: 'Store name is required' },
+      { field: 'storeCode', message: 'Store code is required' },
+      { field: 'email', message: 'Email address is required' },
+      { field: 'address', message: 'Store address is required' }
+    ]
+    
+    for (const { field, message } of requiredFields) {
       if (!body[field]) {
         return NextResponse.json(
-          { success: false, error: `${field} is required` },
+          { success: false, error: message },
           { status: 400 }
         )
       }
@@ -174,7 +181,7 @@ export async function POST(request: NextRequest) {
     const brand = await Brand.findById(body.brandId)
     if (!brand) {
       return NextResponse.json(
-        { success: false, error: 'Brand not found' },
+        { success: false, error: 'The selected brand could not be found. Please refresh the page and try again.' },
         { status: 400 }
       )
     }
@@ -201,7 +208,7 @@ export async function POST(request: NextRequest) {
     if (existingStore) {
       if (existingStore.storeCode === body.storeCode) {
         return NextResponse.json(
-          { success: false, error: 'Store code already exists' },
+          { success: false, error: 'A store with this code already exists. Please choose a different store code.' },
           { status: 400 }
         )
       }

@@ -31,6 +31,8 @@ import {
   TestTube
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ErrorDisplay, FieldError, ValidationErrors } from "@/components/ui/error-display"
+import { useToast } from "@/components/ui/toast"
 
 interface BrandFormData {
   // Basic Info
@@ -218,9 +220,11 @@ export default function BrandCreateModal({
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [tabErrors, setTabErrors] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const isEditMode = !!editBrand
+  const { showSuccess, showError, showWarning } = useToast()
 
   // Handle external modal state control
   useEffect(() => {
@@ -596,9 +600,16 @@ export default function BrandCreateModal({
   }
 
   const handleSubmit = async () => {
-    if (!validateForm()) return
+    if (!validateForm()) {
+      showWarning('Please fix the validation errors before submitting', 'Validation Failed')
+      return
+    }
 
     setLoading(true)
+    setErrors({})
+    setFieldErrors({})
+    setTabErrors({})
+    
     try {
       const url = isEditMode ? `/api/brands/${editBrand._id}` : '/api/brands'
       const method = isEditMode ? 'PUT' : 'POST'
@@ -637,22 +648,43 @@ export default function BrandCreateModal({
           setFormData(initialFormData)
           setCurrentTab("basic")
           setErrors({})
+          setFieldErrors({})
           setTabErrors({})
         }
 
         closeModal()
         
+        // Show success message
         if (isEditMode) {
+          showSuccess(`Brand "${result.data.name}" has been updated successfully!`, 'Brand Updated')
           onBrandUpdated?.(result.data)
         } else {
+          showSuccess(`Brand "${result.data.name}" has been created successfully!`, 'Brand Created')
           onBrandCreated?.(result.data)
         }
       } else {
-        setErrors(prev => ({ ...prev, submit: result.error }))
+        // Handle different types of errors
+        let errorMessage = result.error || 'An unexpected error occurred'
+        
+        // Parse specific error types
+        if (result.error?.includes('already exists')) {
+          errorMessage = 'A brand with this information already exists. Please check the slug or email.'
+        } else if (result.error?.includes('validation')) {
+          errorMessage = 'Please check your input and try again.'
+        } else if (result.error?.includes('permission')) {
+          errorMessage = 'You do not have permission to perform this action.'
+        } else if (result.error?.includes('network') || result.error?.includes('timeout')) {
+          errorMessage = 'Network error. Please check your connection and try again.'
+        }
+        
+        setErrors(prev => ({ ...prev, submit: errorMessage }))
+        showError(errorMessage, isEditMode ? 'Failed to Update Brand' : 'Failed to Create Brand')
       }
     } catch (error) {
-      const errorMessage = isEditMode ? 'Failed to update brand' : 'Failed to create brand'
+      console.error('Brand submission error:', error)
+      const errorMessage = isEditMode ? 'Failed to update brand. Please try again.' : 'Failed to create brand. Please try again.'
       setErrors(prev => ({ ...prev, submit: errorMessage }))
+      showError(errorMessage, 'Network Error')
     } finally {
       setLoading(false)
     }
