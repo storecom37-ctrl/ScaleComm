@@ -62,6 +62,7 @@ export function RatingReviewsSection({ brandId, storeId }: RatingReviewsSectionP
   const [data, setData] = useState<RatingStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isMounted, setIsMounted] = useState(true)
 
   const fetchRatingData = async (retryCount = 0) => {
     try {
@@ -77,7 +78,10 @@ export function RatingReviewsSection({ brandId, storeId }: RatingReviewsSectionP
 
       // Create AbortController for timeout
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+      const timeoutId = setTimeout(() => {
+        console.log('⏰ Request timeout after 60 seconds')
+        controller.abort()
+      }, 60000) // 60 second timeout for large datasets
 
       const response = await fetch(url, {
         method: 'GET',
@@ -88,6 +92,7 @@ export function RatingReviewsSection({ brandId, storeId }: RatingReviewsSectionP
         signal: controller.signal
       })
       
+      // Clear timeout if request completed successfully
       clearTimeout(timeoutId)
       
       if (!response.ok) {
@@ -96,16 +101,32 @@ export function RatingReviewsSection({ brandId, storeId }: RatingReviewsSectionP
 
       const result = await response.json()
       console.log('Rating data fetched successfully:', result)
-      setData(result)
+      if (isMounted) {
+        setData(result)
+      }
     } catch (err) {
       console.error('Error fetching rating data:', err)
       
-      // Retry logic for network errors and timeouts
+      // Check if it's an AbortError (timeout or manual abort)
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('🚫 Request was aborted')
+        if (retryCount < 3) {
+          console.log(`Retrying fetch after abort (attempt ${retryCount + 1}/3)...`)
+          setTimeout(() => fetchRatingData(retryCount + 1), 1000 * (retryCount + 1))
+          return
+        } else {
+          if (isMounted) {
+            setError('Request timed out. Please try again.')
+          }
+          return
+        }
+      }
+      
+      // Retry logic for network errors
       if (retryCount < 3 && (
         err instanceof TypeError || 
         (err instanceof Error && (
           err.message.includes('Failed to fetch') || 
-          err.message.includes('AbortError') ||
           err.message.includes('NetworkError')
         ))
       )) {
@@ -117,23 +138,30 @@ export function RatingReviewsSection({ brandId, storeId }: RatingReviewsSectionP
       // Set appropriate error message
       let errorMessage = 'Unknown error'
       if (err instanceof Error) {
-        if (err.message.includes('AbortError')) {
-          errorMessage = 'Request timed out. Please check your connection and try again.'
-        } else if (err.message.includes('Failed to fetch')) {
+        if (err.message.includes('Failed to fetch')) {
           errorMessage = 'Network error. Please check your connection and try again.'
         } else {
           errorMessage = err.message
         }
       }
       
-      setError(errorMessage)
+      if (isMounted) {
+        setError(errorMessage)
+      }
     } finally {
-      setLoading(false)
+      if (isMounted) {
+        setLoading(false)
+      }
     }
   }
 
   useEffect(() => {
+    setIsMounted(true)
     fetchRatingData()
+    
+    return () => {
+      setIsMounted(false)
+    }
   }, [brandId, storeId])
 
   if (loading) {

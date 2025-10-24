@@ -94,6 +94,7 @@ export default function OverviewPage() {
     isConnected: dbConnected,
     isLoading: dbLoading,
     account: dbAccount,
+    locations: dbLocations,
     reviews: dbReviews,
     posts: dbPosts,
     refreshAll
@@ -129,7 +130,7 @@ export default function OverviewPage() {
   const finalIsConnected = dbConnected && totalLocations > 0
 
   // Get final data arrays
-  const finalLocations = dbAccount?.locations || []
+  const finalLocations = dbLocations || []
   const finalReviews = dbReviews || []
   const finalPosts = dbPosts || []
 
@@ -384,7 +385,7 @@ export default function OverviewPage() {
 
         {/* Impression Analytics */}
         <ImpressionAnalytics 
-          accountId="all" 
+          accountId={dbAccount?.id || "all"} 
           locationId="all" 
         />
 

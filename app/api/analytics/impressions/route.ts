@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/database/connection'
 import { Performance } from '@/lib/database/separate-models'
+import { getGmbTokensFromRequest, getAllBrandAccountIds } from '@/lib/utils/auth-helpers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,11 +11,23 @@ export async function GET(request: NextRequest) {
     const accountId = searchParams.get('accountId')
     const locationId = searchParams.get('locationId')
 
-    // If no specific account/location requested, get all data from database
+    // Get accessible accounts for filtering
+    const tokens = await getGmbTokensFromRequest()
+    let accessibleAccountIds: string[] = []
+    
+    if (tokens) {
+      accessibleAccountIds = await getAllBrandAccountIds()
+    }
+
+    // Build query with proper account filtering
     const matchQuery: any = { status: 'active' }
     
+    // If specific account requested, use it; otherwise filter by accessible accounts
     if (accountId && accountId !== 'all') {
       matchQuery.accountId = accountId
+    } else if (accessibleAccountIds.length > 0) {
+      // Filter by accessible accounts if no specific account requested
+      matchQuery.accountId = { $in: accessibleAccountIds }
     }
     
     if (locationId && locationId !== 'all') {

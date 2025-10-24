@@ -5,7 +5,6 @@ import { useStores } from "@/lib/hooks/use-stores"
 import { useGmbData } from "@/lib/hooks/use-gmb-data"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import {
   Select,
@@ -20,9 +19,7 @@ export function LocationFilter() {
   // Get filter state from global store
   const { 
     selectedStores, 
-    multiSelectMode, 
-    setSelectedStores, 
-    setMultiSelectMode 
+    setSelectedStores
   } = useGmbStore()
   
   // Get GMB account data
@@ -52,9 +49,9 @@ export function LocationFilter() {
 
   return (
     <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-gray-50/50">
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-3">
         <CardTitle className="text-base font-semibold flex items-center gap-2 text-gray-900">
-          <div className="p-2 bg-green-100 rounded-lg">
+          <div className="p-1.5 bg-green-100 rounded-lg">
             <Store className="h-4 w-4 text-green-600" />
           </div>
           Store Filter
@@ -64,45 +61,15 @@ export function LocationFilter() {
           {storesLoading && <span className="ml-2 text-blue-600 font-medium">Loading stores...</span>}
         </p>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-          <Checkbox
-            id="multi-select"
-            checked={multiSelectMode}
-            onCheckedChange={(checked) => setMultiSelectMode(!!checked)}
-            className="border-2 border-gray-300"
-          />
-          <label
-            htmlFor="multi-select"
-            className="text-sm font-medium text-gray-700 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
-          >
-            <Building2 className="h-4 w-4" />
-            Multi-select mode
-          </label>
-        </div>
-
+      <CardContent className="space-y-4">
         {stores.length > 0 ? (
           <Select 
             value={selectedStores.includes("all") ? "all" : selectedStores[0] || "all"} 
             onValueChange={(value) => {
-              if (multiSelectMode) {
-                // Handle multi-select logic
-                if (value === "all") {
-                  setSelectedStores(["all"])
-                } else {
-                  const newSelection = selectedStores.includes("all") 
-                    ? [value] 
-                    : selectedStores.includes(value)
-                      ? selectedStores.filter(id => id !== value)
-                      : [...selectedStores.filter(id => id !== "all"), value]
-                  setSelectedStores(newSelection.length === 0 ? ["all"] : newSelection)
-                }
-              } else {
-                setSelectedStores([value])
-              }
+              setSelectedStores([value])
             }}
           >
-            <SelectTrigger className="w-full h-12 border-2 border-gray-200 hover:border-green-300 transition-colors bg-white">
+            <SelectTrigger className="w-full h-10 border-2 border-gray-200 hover:border-green-300 transition-colors bg-white">
               <SelectValue>
                 {selectedStores.includes("all") || selectedStores.length === 0
                   ? `All Stores (${stores.find(s => s.id === "all")?.count || 0})`
@@ -114,10 +81,10 @@ export function LocationFilter() {
             </SelectTrigger>
             <SelectContent>
               {stores.map((store) => (
-                <SelectItem key={store.id} value={store.id}>
+                <SelectItem key={store.id} value={store.id} className="py-2">
                   <div className="flex items-center justify-between w-full">
                     <div className="flex flex-col items-start">
-                      <span className="font-medium">{store.name}</span>
+                      <span className="font-medium text-sm">{store.name}</span>
                       {store.storeCode && store.id !== "all" && (
                         <span className="text-xs text-muted-foreground">
                           {store.storeCode} {store.city && `• ${store.city}`}
@@ -135,25 +102,13 @@ export function LocationFilter() {
             </SelectContent>
           </Select>
         ) : (
-          <div className="w-full p-6 border-2 border-dashed border-gray-300 rounded-lg text-center bg-gray-50">
-            <MapPin className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-gray-500 font-medium">
+          <div className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg text-center bg-gray-50">
+            <MapPin className="h-6 w-6 text-gray-400 mx-auto mb-2" />
+            <p className="text-gray-500 font-medium text-sm">
               {storesLoading ? 'Loading stores...' : 'No stores available'}
             </p>
           </div>
         )}
-
-        {/* Debug section - show current selection */}
-        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="text-sm text-blue-800">
-            <strong>Current Selection:</strong> {selectedStores.join(', ')}
-          </div>
-          <div className="text-xs text-blue-600 mt-1">
-            Multi-select: {multiSelectMode ? 'Enabled' : 'Disabled'} | 
-            Total stores: {stores.length} | 
-            Filtered stores: {selectedStores.includes("all") ? stores.length - 1 : selectedStores.length}
-          </div>
-        </div>
       </CardContent>
     </Card>
   )

@@ -37,30 +37,34 @@ export async function GET(request: NextRequest) {
 
     console.log('🔍 Rating Reviews API - Querying database with match:', matchQuery)
 
-    // Get total reviews and average rating
+    // Get total reviews and average rating with optimized aggregation
     const ratingStats = await Review.aggregate([
       { $match: matchQuery },
       {
         $group: {
           _id: null,
           totalReviews: { $sum: 1 },
-          averageRating: { $avg: '$starRating' },
-          ratingDistribution: {
-            $push: '$starRating'
-          }
+          averageRating: { $avg: '$starRating' }
         }
       }
     ])
 
-    // Process rating distribution
-    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-    if (ratingStats.length > 0 && ratingStats[0].ratingDistribution) {
-      ratingStats[0].ratingDistribution.forEach((rating: number) => {
-        if (rating >= 1 && rating <= 5) {
-          distribution[rating as keyof typeof distribution]++
+    // Get rating distribution separately for better performance
+    const ratingDistribution = await Review.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: '$starRating',
+          count: { $sum: 1 }
         }
-      })
-    }
+      },
+      { $sort: { '_id': -1 } }
+    ])
+
+    const distribution: { [key: number]: number } = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    ratingDistribution.forEach(item => {
+      distribution[item._id] = item.count
+    })
 
     // Get monthly sentiment data (last 12 months) - using same logic as existing monthly sentiment API
     const endDate = new Date()
@@ -74,8 +78,11 @@ export async function GET(request: NextRequest) {
       gmbCreateTime: { $gte: startDate, $lte: endDate }
     }
 
+    console.log('🔍 Rating Reviews API - Processing monthly sentiment for date range:', { startDate, endDate })
+
     const monthlySentiment = await Review.aggregate([
       { $match: monthlyMatchStage },
+      { $limit: 10000 }, // Limit to improve performance
       {
         $addFields: {
           sentiment: {
@@ -327,7 +334,12 @@ export async function GET(request: NextRequest) {
       reviewsLast30Days: result.reviewsLast30Days
     })
 
-    return NextResponse.json(result)
+    return NextResponse.json(result, {
+      headers: {
+        'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
+        'Content-Type': 'application/json'
+      }
+    })
 
   } catch (error) {
     console.error('❌ Rating Reviews API Error:', error)
