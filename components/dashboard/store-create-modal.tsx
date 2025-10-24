@@ -32,6 +32,8 @@ import {
   TestTube
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ErrorDisplay, FieldError, ValidationErrors } from "@/components/ui/error-display"
+import { useToast } from "@/components/ui/toast"
 
 interface StoreFormData {
   // Basic Information
@@ -83,7 +85,6 @@ interface StoreFormData {
   microsite: {
     tagline: string
     gmbUrl: string
-    mapsUrl: string
     heroImage: { url: string; key: string } | null
     existingImages: Array<{ url: string; key: string; caption: string }>
   }
@@ -151,7 +152,6 @@ const initialFormData: StoreFormData = {
   microsite: {
     tagline: "",
     gmbUrl: "",
-    mapsUrl: "",
     heroImage: null,
     existingImages: []
   },
@@ -173,8 +173,8 @@ const initialFormData: StoreFormData = {
 }
 
 interface StoreCreateModalProps {
-  onStoreCreated?: (store: any, message?: string) => void
-  onStoreUpdated?: (store: any, message?: string) => void
+  onStoreCreated?: (store: any) => void
+  onStoreUpdated?: (store: any) => void
   editStore?: any
   isOpen?: boolean
   onClose?: () => void
@@ -198,11 +198,13 @@ export default function StoreCreateModal({
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [brands, setBrands] = useState<any[]>([])
   const [gmbCategories, setGmbCategories] = useState<any[]>([])
   const [loadingCategories, setLoadingCategories] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const isEditMode = !!editStore
+  const { showSuccess, showError, showWarning } = useToast()
 
   // Handle external modal state control
   useEffect(() => {
@@ -274,25 +276,7 @@ export default function StoreCreateModal({
 
   // Populate form data when editing
   useEffect(() => {
-    if (editStore) {
-      // Find matching GMB category from primaryCategory
-      let matchedGmbCategoryId = editStore.gmbCategoryId || ''
-      let matchedGmbCategoryDisplayName = editStore.gmbCategoryDisplayName || editStore.primaryCategory || ''
-      
-      // If we have primaryCategory but no gmbCategoryId, try to find a match
-      if (!matchedGmbCategoryId && editStore.primaryCategory && gmbCategories.length > 0) {
-        const matchedCategory = gmbCategories.find(
-          cat => cat.label.toLowerCase() === editStore.primaryCategory.toLowerCase()
-        )
-        if (matchedCategory) {
-          matchedGmbCategoryId = matchedCategory.value
-          matchedGmbCategoryDisplayName = matchedCategory.label
-        } else {
-          // If no exact match, just use primaryCategory as displayName
-          matchedGmbCategoryDisplayName = editStore.primaryCategory
-        }
-      }
-      
+    if (editStore) {      
       const newFormData = {
         brandId: editStore.brandId?._id || editStore.brandId || '',
         name: editStore.name || '',
@@ -312,8 +296,6 @@ export default function StoreCreateModal({
           longitude: editStore.address?.longitude || undefined
         },
         primaryCategory: editStore.primaryCategory || 'Business',
-        gmbCategoryId: matchedGmbCategoryId,
-        gmbCategoryDisplayName: matchedGmbCategoryDisplayName,
         additionalCategories: editStore.additionalCategories || [],
         tags: editStore.tags || [],
         hoursOfOperation: editStore.hoursOfOperation || initialFormData.hoursOfOperation,
@@ -323,8 +305,7 @@ export default function StoreCreateModal({
         },
         microsite: {
           tagline: editStore.microsite?.tagline || '',
-          gmbUrl: editStore.microsite?.gmbUrl || editStore.gmbData?.metadata?.websiteUrl || '',
-          mapsUrl: editStore.microsite?.mapsUrl || editStore.gmbData?.metadata?.mapsUri || '',
+          gmbUrl: editStore.microsite?.gmbUrl || '',
           heroImage: editStore.microsite?.heroImage || null,
           existingImages: editStore.microsite?.existingImages || []
         },
@@ -341,17 +322,19 @@ export default function StoreCreateModal({
           keywords: editStore.seo?.keywords || [editStore.primaryCategory || 'Business', editStore.address?.city || ''].filter(Boolean)
         },
         gmbLocationId: editStore.gmbLocationId || '',
+        gmbCategoryId: editStore.gmbCategoryId || '',
+        gmbCategoryDisplayName: editStore.gmbCategoryDisplayName || '',
         placeId: editStore.placeId || '',
         status: editStore.status || 'active'
       }
-            
+      
       setFormData(newFormData)
       
     } else {
       
       setFormData(initialFormData)
     }
-  }, [editStore, gmbCategories])
+  }, [editStore])
 
   const tabs = [
     { id: "details", label: "Details", icon: Building2 },
@@ -410,7 +393,6 @@ export default function StoreCreateModal({
       microsite: {
         tagline: "A short, catchy phrase for this location",
         gmbUrl: "https://www.colive.com/bangalore/pg-in-marathahalli/main-street-branch",
-        mapsUrl: "https://maps.google.com/maps?cid=12244601560303741346",
         heroImage: null,
         existingImages: []
       },
@@ -541,25 +523,77 @@ export default function StoreCreateModal({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
+    const newFieldErrors: Record<string, string> = {}
 
-    // Basic validation - brandId is optional for GMB stores
-    if (!formData.brandId && !formData.gmbLocationId) newErrors.brandId = "Brand is required"
-    if (!formData.name.trim()) newErrors.name = "Store name is required"
-    if (!formData.storeCode.trim()) newErrors.storeCode = "Store code is required"
-    if (!formData.email.trim()) newErrors.email = "Email is required"
-    if (!formData.address.line1.trim()) newErrors.addressLine1 = "Address line 1 is required"
-    if (!formData.address.city.trim()) newErrors.city = "City is required"
-    if (!formData.address.state.trim()) newErrors.state = "State is required"
-    if (!formData.address.postalCode.trim()) newErrors.postalCode = "Postal code is required"
+    // Basic Information Validation
+    if (!formData.brandId && !formData.gmbLocationId) {
+      newFieldErrors.brandId = 'Please select a brand or connect to Google My Business'
+      newErrors.brandId = 'Brand selection is required'
+    }
+    
+    if (!formData.name?.trim()) {
+      newFieldErrors.name = 'Store name cannot be empty'
+      newErrors.name = 'Store name is required'
+    } else if (formData.name.length < 2) {
+      newFieldErrors.name = 'Store name must be at least 2 characters'
+      newErrors.name = 'Store name is too short'
+    }
+    
+    if (!formData.storeCode?.trim()) {
+      newFieldErrors.storeCode = 'Store code cannot be empty'
+      newErrors.storeCode = 'Store code is required'
+    } else if (!/^[A-Z0-9-_]+$/.test(formData.storeCode)) {
+      newFieldErrors.storeCode = 'Store code can only contain uppercase letters, numbers, hyphens, and underscores'
+      newErrors.storeCode = 'Invalid store code format'
+    }
+    
+    if (!formData.email?.trim()) {
+      newFieldErrors.email = 'Email address is required'
+      newErrors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newFieldErrors.email = 'Please enter a valid email address'
+      newErrors.email = 'Invalid email format'
+    }
+
+    // Address Validation
+    if (!formData.address.line1?.trim()) {
+      newFieldErrors['address.line1'] = 'Street address is required'
+      newErrors.addressLine1 = 'Address line 1 is required'
+    }
+    
+    if (!formData.address.city?.trim()) {
+      newFieldErrors['address.city'] = 'City is required'
+      newErrors.city = 'City is required'
+    }
+    
+    if (!formData.address.state?.trim()) {
+      newFieldErrors['address.state'] = 'State is required'
+      newErrors.state = 'State is required'
+    }
+    
+    if (!formData.address.postalCode?.trim()) {
+      newFieldErrors['address.postalCode'] = 'Postal code is required'
+      newErrors.postalCode = 'Postal code is required'
+    } else if (!/^\d{5}(-\d{4})?$/.test(formData.address.postalCode)) {
+      newFieldErrors['address.postalCode'] = 'Please enter a valid postal code (e.g., 12345 or 12345-6789)'
+      newErrors.postalCode = 'Invalid postal code format'
+    }
 
     setErrors(newErrors)
+    setFieldErrors(newFieldErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async () => {
-    if (!validateForm()) return
+    if (!validateForm()) {
+      showWarning('Please fix the validation errors before submitting', 'Validation Failed')
+      return
+    }
 
     setLoading(true)
+    setErrors({})
+    setFieldErrors({})
+    
     try {      
       const url = isEditMode ? `/api/stores/${editStore._id}` : '/api/stores'
       const method = isEditMode ? 'PUT' : 'POST'
@@ -585,46 +619,42 @@ export default function StoreCreateModal({
           setFormData(initialFormData)
           setCurrentTab("details")
           setErrors({})
+          setFieldErrors({})
         }
 
-        // Extract success message
-        const successMessage = result.message || (isEditMode ? 'Store updated successfully' : 'Store created successfully')
-        
         closeModal()
         
+        // Show success message
         if (isEditMode) {
-          onStoreUpdated?.(result.data, successMessage)
+          showSuccess(`Store "${result.data.name}" has been updated successfully!`, 'Store Updated')
+          onStoreUpdated?.(result.data)
         } else {
-          onStoreCreated?.(result.data, successMessage)
+          showSuccess(`Store "${result.data.name}" has been created successfully!`, 'Store Created')
+          onStoreCreated?.(result.data)
         }
       } else {
-        // Process error message to make it more user-friendly
+        // Handle different types of errors
         let errorMessage = result.error || 'An unexpected error occurred'
         
-        // If it's a raw JSON error, try to extract meaningful information
-        if (errorMessage.includes('Failed to update GMB') && errorMessage.includes('HTTP error')) {
-          if (errorMessage.includes('THROTTLED')) {
-            errorMessage = 'Google My Business API rate limit exceeded. Please wait a moment and try again.'
-          } else if (errorMessage.includes('INVALID_CATEGORY')) {
-            errorMessage = 'Invalid business category. Please select a valid category from the list.'
-          } else if (errorMessage.includes('INVALID_PHONE_NUMBER')) {
-            errorMessage = 'Invalid phone number format. Please enter a valid phone number.'
-          } else if (errorMessage.includes('PIN_DROP_REQUIRED')) {
-            errorMessage = 'Address update requires location verification. Please contact support.'
-          } else if (errorMessage.includes('INVALID_ADDRESS')) {
-            errorMessage = 'Invalid address format. Please check your address details.'
-          } else if (errorMessage.includes('ADDRESS_EDIT_CHANGES_COUNTRY')) {
-            errorMessage = 'Cannot change country in address. Please contact support for country changes.'
-          } else {
-            errorMessage = 'Failed to update store in Google My Business. Please check your information and try again.'
-          }
+        // Parse specific error types
+        if (result.error?.includes('already exists')) {
+          errorMessage = 'A store with this information already exists. Please check the store code or email.'
+        } else if (result.error?.includes('validation')) {
+          errorMessage = 'Please check your input and try again.'
+        } else if (result.error?.includes('permission')) {
+          errorMessage = 'You do not have permission to perform this action.'
+        } else if (result.error?.includes('network') || result.error?.includes('timeout')) {
+          errorMessage = 'Network error. Please check your connection and try again.'
         }
         
         setErrors(prev => ({ ...prev, submit: errorMessage }))
+        showError(errorMessage, isEditMode ? 'Failed to Update Store' : 'Failed to Create Store')
       }
     } catch (error) {
-      const errorMessage = isEditMode ? 'Failed to update store' : 'Failed to create store'
+      console.error('Store submission error:', error)
+      const errorMessage = isEditMode ? 'Failed to update store. Please try again.' : 'Failed to create store. Please try again.'
       setErrors(prev => ({ ...prev, submit: errorMessage }))
+      showError(errorMessage, 'Network Error')
     } finally {
       setLoading(false)
     }
@@ -683,10 +713,7 @@ export default function StoreCreateModal({
                         ))}
                       </SelectContent>
                     </Select>
-                    {errors.brandId && <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
-                      <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                      {errors.brandId}
-                    </p>}
+                    <FieldError error={fieldErrors.brandId || errors.brandId} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="storeCode" className="text-sm font-medium text-gray-700 dark:text-gray-300">Store Code *</Label>
@@ -697,10 +724,7 @@ export default function StoreCreateModal({
                       placeholder="e.g. NYC-001"
                       className="h-11 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400"
                     />
-                    {errors.storeCode && <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
-                      <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                      {errors.storeCode}
-                    </p>}
+                    <FieldError error={fieldErrors.storeCode || errors.storeCode} />
                   </div>
                 </div>
 
@@ -714,10 +738,7 @@ export default function StoreCreateModal({
                       placeholder="Main Street Branch"
                       className="h-11 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400"
                     />
-                    {errors.name && <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
-                      <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                      {errors.name}
-                    </p>}
+                    <FieldError error={fieldErrors.name || errors.name} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="slug" className="text-sm font-medium text-gray-700 dark:text-gray-300">Store Slug *</Label>
@@ -728,10 +749,7 @@ export default function StoreCreateModal({
                       placeholder="main-street-branch"
                       className="h-11 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400"
                     />
-                    {errors.slug && <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
-                      <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                      {errors.slug}
-                    </p>}
+                    <FieldError error={fieldErrors.slug || errors.slug} />
                   </div>
                 </div>
 
@@ -746,10 +764,7 @@ export default function StoreCreateModal({
                       placeholder="contact@store.com"
                       className="h-11 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400"
                     />
-                    {errors.email && <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
-                      <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                      {errors.email}
-                    </p>}
+                    <FieldError error={fieldErrors.email || errors.email} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone" className="text-sm font-medium text-gray-700 dark:text-gray-300">Landline Phone Number</Label>
@@ -824,10 +839,7 @@ export default function StoreCreateModal({
                       placeholder="New York"
                       className="h-11 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400"
                     />
-                    {errors.city && <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
-                      <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                      {errors.city}
-                    </p>}
+                    <FieldError error={fieldErrors['address.city'] || errors.city} />
                   </div>
                 </div>
 
@@ -841,10 +853,7 @@ export default function StoreCreateModal({
                       placeholder="10001"
                       className="h-11 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400"
                     />
-                    {errors.postalCode && <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
-                      <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                      {errors.postalCode}
-                    </p>}
+                    <FieldError error={fieldErrors['address.postalCode'] || errors.postalCode} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="state" className="text-sm font-medium text-gray-700 dark:text-gray-300">State *</Label>
@@ -855,10 +864,7 @@ export default function StoreCreateModal({
                       placeholder="NY"
                       className="h-11 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400"
                     />
-                    {errors.state && <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
-                      <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                      {errors.state}
-                    </p>}
+                    <FieldError error={fieldErrors['address.state'] || errors.state} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="countryCode" className="text-sm font-medium text-gray-700 dark:text-gray-300">Country Code</Label>
@@ -1091,41 +1097,6 @@ export default function StoreCreateModal({
                     className="h-11 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400">The specific location page URL from Google My Business</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="mapsUrl" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                    Google Maps URL
-                  </Label>
-                  <Input
-                    id="mapsUrl"
-                    value={formData.microsite.mapsUrl || ''}
-                    onChange={(e) => handleInputChange('microsite.mapsUrl', e.target.value)}
-                    placeholder="https://maps.google.com/maps?cid=12244601560303741346"
-                    className={`h-11 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400`}
-                  />
-        
-                  {/* Manual Sync Button */}
-                  {isEditMode && editStore && !formData.microsite.mapsUrl && (
-                    <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <p className="text-xs text-yellow-700 font-medium mb-2">
-                        Maps URL not found in microsite, but may be available in GMB data:
-                      </p>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="text-xs h-8"
-                        onClick={() => {
-                          const gmbMapsUri = editStore.gmbData?.metadata?.mapsUri
-                          if (gmbMapsUri) {
-                            handleInputChange('microsite.mapsUrl', gmbMapsUri)
-                          }
-                        }}
-                      >
-                        Copy from GMB Data
-                      </Button>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1526,33 +1497,33 @@ export default function StoreCreateModal({
         </div>
 
         {/* Error Display */}
-        {(errors.submit || errors.upload) && (
+        {(errors.submit || errors.upload || Object.keys(fieldErrors).length > 0) && (
           <div className="px-3 sm:px-6 py-3 border-t bg-red-50/50 dark:bg-red-950/20">
             {errors.submit && (
-              <div className="flex items-start gap-3 p-4 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
-                <div className="w-5 h-5 bg-red-500 rounded-full flex-shrink-0 mt-0.5"></div>
-                <div className="flex-1">
-                  <p className="text-sm text-red-700 dark:text-red-300 font-medium mb-1">
-                    {isEditMode ? 'Unable to update store' : 'Unable to create store'}
-                  </p>
-                  <p className="text-sm text-red-600 dark:text-red-400">{errors.submit}</p>
-                  {errors.submit.includes('Google My Business') && (
-                    <p className="text-xs text-red-500 dark:text-red-500 mt-2">
-                      💡 Tip: Make sure your store information meets Google My Business requirements.
-                    </p>
-                  )}
-                </div>
-              </div>
+              <ErrorDisplay
+                type="error"
+                title="Submission Error"
+                message={errors.submit}
+                className="mb-3"
+              />
             )}
             {errors.upload && (
-              <div className="flex items-start gap-3 p-4 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
-                <div className="w-5 h-5 bg-red-500 rounded-full flex-shrink-0 mt-0.5"></div>
-                <div className="flex-1">
-                  <p className="text-sm text-red-700 dark:text-red-300 font-medium mb-1">
-                    Upload Error
-                  </p>
-                  <p className="text-sm text-red-600 dark:text-red-400">{errors.upload}</p>
-                </div>
+              <ErrorDisplay
+                type="error"
+                title="Upload Error"
+                message={errors.upload}
+                className="mb-3"
+              />
+            )}
+            {Object.keys(fieldErrors).length > 0 && (
+              <div className="mb-3">
+                <ErrorDisplay
+                  type="warning"
+                  title="Please fix the following issues:"
+                  message=""
+                  className="mb-2"
+                />
+                <ValidationErrors errors={fieldErrors} />
               </div>
             )}
           </div>

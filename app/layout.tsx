@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import GmbProgressWidget from "@/components/dashboard/gmb-progress-widget";
 import { SessionProvider } from "@/components/providers/session-provider";
+import { ToastProvider } from "@/components/providers/toast-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,8 +31,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SessionProvider>
-          {children}
-          <GmbProgressWidget />
+          <ToastProvider>
+            {children}
+            <GmbProgressWidget />
+          </ToastProvider>
         </SessionProvider>
       </body>
     </html>

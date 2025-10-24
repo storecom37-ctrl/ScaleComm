@@ -328,6 +328,14 @@ const PerformanceSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  mobileSearchImpressions: {
+    type: Number,
+    default: 0
+  },
+  desktopMapsImpressions: {
+    type: Number,
+    default: 0
+  },
   mobileMapsImpressions: {
     type: Number,
     default: 0
@@ -1592,6 +1600,8 @@ export interface IPerformance extends mongoose.Document {
   businessFoodOrders?: number
   businessMessages?: number
   desktopSearchImpressions?: number
+  mobileSearchImpressions?: number
+  desktopMapsImpressions?: number
   mobileMapsImpressions?: number
   conversionRate?: number
   clickThroughRate?: number

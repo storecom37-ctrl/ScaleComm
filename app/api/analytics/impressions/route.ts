@@ -1,67 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/database/connection'
 import { Performance } from '@/lib/database/separate-models'
-import { getGmbTokensFromRequest, getAllBrandAccountIds } from '@/lib/utils/auth-helpers'
 
 export async function GET(request: NextRequest) {
   try {
     await connectToDatabase()
-    
-    // Get tokens from request to filter by accessible GMB accounts
-    const tokens = await getGmbTokensFromRequest()
-    let accessibleAccountIds: string[] = []
-    
-    if (tokens) {
-      // Get all account IDs that the current user has access to
-      accessibleAccountIds = await getAllBrandAccountIds()
-      
-    }
 
     const { searchParams } = new URL(request.url)
     const accountId = searchParams.get('accountId')
     const locationId = searchParams.get('locationId')
-    const days = parseInt(searchParams.get('days') || '30')
 
-    if (!accountId || !locationId) {
-      return NextResponse.json({ error: 'Missing accountId or locationId' }, { status: 400 })
+    // If no specific account/location requested, get all data from database
+    const matchQuery: any = { status: 'active' }
+    
+    if (accountId && accountId !== 'all') {
+      matchQuery.accountId = accountId
+    }
+    
+    if (locationId && locationId !== 'all') {
+      matchQuery.locationId = locationId
     }
 
-    // If no GMB authentication, return empty data
-    if (accessibleAccountIds.length === 0) {
-      
-      return NextResponse.json({
-        deviceInteraction: { desktop: 0, mobile: 0, total: 0 },
-        platformImpressions: { maps: 0, search: 0, total: 0 },
-        detailedBreakdown: {
-          desktopSearch: 0,
-          mobileSearch: 0,
-          desktopMaps: 0,
-          mobileMaps: 0
-        },
-        message: 'No GMB authentication - connect your Google My Business account to view impression data'
-      })
-    }
+    console.log('🔍 Impressions API - Querying database with match:', matchQuery)
 
-    // Check if the requested accountId is accessible
-    if (!accessibleAccountIds.includes(accountId)) {
-      return NextResponse.json({ error: 'Access denied to this account' }, { status: 403 })
-    }
-
-    // Calculate date range
-    const endDate = new Date()
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
-
-    // Aggregate impression data
+    // Aggregate impression data from database
     const impressionData = await Performance.aggregate([
       {
-        $match: {
-          accountId,
-          locationId,
-          'period.startTime': { $gte: startDate },
-          'period.endTime': { $lte: endDate },
-          status: 'active'
-        }
+        $match: matchQuery
       },
       {
         $group: {

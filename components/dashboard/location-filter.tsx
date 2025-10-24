@@ -82,23 +82,26 @@ export function LocationFilter() {
         </div>
 
         {stores.length > 0 ? (
-          <Select value={selectedStores[0] || "all"} onValueChange={(value) => {
-            if (multiSelectMode) {
-              // Handle multi-select logic
-              if (value === "all") {
-                setSelectedStores(["all"])
+          <Select 
+            value={selectedStores.includes("all") ? "all" : selectedStores[0] || "all"} 
+            onValueChange={(value) => {
+              if (multiSelectMode) {
+                // Handle multi-select logic
+                if (value === "all") {
+                  setSelectedStores(["all"])
+                } else {
+                  const newSelection = selectedStores.includes("all") 
+                    ? [value] 
+                    : selectedStores.includes(value)
+                      ? selectedStores.filter(id => id !== value)
+                      : [...selectedStores.filter(id => id !== "all"), value]
+                  setSelectedStores(newSelection.length === 0 ? ["all"] : newSelection)
+                }
               } else {
-                const newSelection = selectedStores.includes("all") 
-                  ? [value] 
-                  : selectedStores.includes(value)
-                    ? selectedStores.filter(id => id !== value)
-                    : [...selectedStores.filter(id => id !== "all"), value]
-                setSelectedStores(newSelection.length === 0 ? ["all"] : newSelection)
+                setSelectedStores([value])
               }
-            } else {
-              setSelectedStores([value])
-            }
-          }}>
+            }}
+          >
             <SelectTrigger className="w-full h-12 border-2 border-gray-200 hover:border-green-300 transition-colors bg-white">
               <SelectValue>
                 {selectedStores.includes("all") || selectedStores.length === 0
@@ -140,28 +143,17 @@ export function LocationFilter() {
           </div>
         )}
 
-        {/* <div className="flex justify-between items-center">
-          <div className="text-sm text-muted-foreground">
-            {stores.length > 0 ? (
-              isConnected ? (
-                locations && locations.length > 0 ? (
-                  `${locations.length} location${locations.length !== 1 ? 's' : ''} connected to GMB account`
-                ) : gmbStores.length > 0 ? (
-                  `${gmbStores.length} store${gmbStores.length !== 1 ? 's' : ''} linked to GMB account`
-                ) : (
-                  "No stores linked to GMB account"
-                )
-              ) : (
-                "Connect GMB to see linked stores"
-              )
-            ) : (
-              storesLoading ? "Loading stores..." : "No stores available - create stores or sync GMB account"
-            )}
+        {/* Debug section - show current selection */}
+        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="text-sm text-blue-800">
+            <strong>Current Selection:</strong> {selectedStores.join(', ')}
           </div>
-          <Button variant="outline" size="sm">
-            {isConnected ? 'Manage Stores' : 'Connect GMB'}
-          </Button>
-        </div> */}
+          <div className="text-xs text-blue-600 mt-1">
+            Multi-select: {multiSelectMode ? 'Enabled' : 'Disabled'} | 
+            Total stores: {stores.length} | 
+            Filtered stores: {selectedStores.includes("all") ? stores.length - 1 : selectedStores.length}
+          </div>
+        </div>
       </CardContent>
     </Card>
   )

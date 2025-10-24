@@ -138,12 +138,19 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    // Validate required fields
-    const requiredFields = ['name', 'slug', 'email', 'address', 'users']
-    for (const field of requiredFields) {
+    // Validate required fields with user-friendly messages
+    const requiredFields = [
+      { field: 'name', message: 'Brand name is required' },
+      { field: 'slug', message: 'Brand slug is required' },
+      { field: 'email', message: 'Brand email address is required' },
+      { field: 'address', message: 'Brand address is required' },
+      { field: 'users', message: 'User information is required' }
+    ]
+    
+    for (const { field, message } of requiredFields) {
       if (!body[field]) {
         return NextResponse.json(
-          { success: false, error: `${field} is required` },
+          { success: false, error: message },
           { status: 400 }
         )
       }
@@ -153,7 +160,7 @@ export async function POST(request: NextRequest) {
     const existingBrand = await Brand.findOne({ slug: body.slug })
     if (existingBrand) {
       return NextResponse.json(
-        { success: false, error: 'Brand slug already exists' },
+        { success: false, error: 'A brand with this slug already exists. Please choose a different slug.' },
         { status: 400 }
       )
     }
@@ -162,7 +169,7 @@ export async function POST(request: NextRequest) {
     const existingOwner = await Brand.findOne({ 'users.owner.email': body.users.owner.email })
     if (existingOwner) {
       return NextResponse.json(
-        { success: false, error: 'Owner email already exists' },
+        { success: false, error: 'An account with this email address already exists. Please use a different email.' },
         { status: 400 }
       )
     }

@@ -12,17 +12,11 @@ interface PlatformImpressionData {
 
 interface PlatformImpressionChartProps {
   data: PlatformImpressionData
-  timeFilter: string
-  onTimeFilterChange: (filter: string) => void
   isLoading?: boolean
 }
 
-const timeFilters = ['1M', '6M', '1Y', 'All time']
-
 export function PlatformImpressionChart({ 
   data, 
-  timeFilter, 
-  onTimeFilterChange, 
   isLoading = false 
 }: PlatformImpressionChartProps) {
   const { maps, search, total } = data
@@ -40,17 +34,6 @@ export function PlatformImpressionChart({
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Maps vs Search Impressions</CardTitle>
-          <div className="flex space-x-4">
-            {timeFilters.map((filter) => (
-              <button
-                key={filter}
-                className="text-sm text-gray-500 hover:text-gray-700"
-                disabled
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -74,21 +57,6 @@ export function PlatformImpressionChart({
     <Card className="w-full">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Maps vs Search Impressions</CardTitle>
-        <div className="flex space-x-4">
-          {timeFilters.map((filter) => (
-            <button
-              key={filter}
-              onClick={() => onTimeFilterChange(filter)}
-              className={`text-sm transition-colors ${
-                timeFilter === filter
-                  ? 'text-primary font-medium border-b-2 border-primary'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
