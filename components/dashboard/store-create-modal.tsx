@@ -190,9 +190,7 @@ export default function StoreCreateModal({
   const [open, setOpen] = useState(false)
   
   // Debug open state changes
-  useEffect(() => {
-    
-  }, [open])
+
   const [currentTab, setCurrentTab] = useState("details")
   const [formData, setFormData] = useState<StoreFormData>(initialFormData)
   const [loading, setLoading] = useState(false)
