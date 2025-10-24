@@ -34,8 +34,6 @@ export async function GET(request: NextRequest) {
       matchQuery.locationId = locationId
     }
 
-    console.log('🔍 Impressions API - Querying database with match:', matchQuery)
-
     // Aggregate impression data from database
     const impressionData = await Performance.aggregate([
       {

@@ -15,12 +15,12 @@ interface DeviceInteractionChartProps {
   isLoading?: boolean
 }
 
-export function DeviceInteractionChart({ 
-  data, 
-  isLoading = false 
+export function DeviceInteractionChart({
+  data,
+  isLoading = false
 }: DeviceInteractionChartProps) {
   const { desktop, mobile, total } = data
-  
+
   const desktopPercentage = total > 0 ? (desktop / total) * 100 : 0
   const mobilePercentage = total > 0 ? (mobile / total) * 100 : 0
 
@@ -46,56 +46,56 @@ export function DeviceInteractionChart({
   }
 
   return (
-    <Card className="w-full">
+    <Card className="w-full h-full flex flex-col">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Interaction By Devices</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="text-2xl font-bold text-gray-900">
-            {total.toLocaleString()}
-          </div>
-          
-          <div className="space-y-3">
-            {/* Desktop Bar */}
-            <div className="flex items-center space-x-3">
-              <Monitor className="w-4 h-4 text-gray-600" />
-              <div className="flex-1">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium text-gray-700">Desktop</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {desktopPercentage.toFixed(2)}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${desktopPercentage}%` }}
-                  />
-                </div>
+      <CardContent className='h-full flex flex-col justify-between'>
+
+        <div className="text-2xl font-bold text-gray-900">
+          {total.toLocaleString()}
+        </div>
+
+        <div className="space-y-3">
+          {/* Desktop Bar */}
+          <div className="flex items-center space-x-3">
+            <Monitor className="w-4 h-4 text-gray-600" />
+            <div className="flex-1">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm font-medium text-gray-700">Desktop</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {desktopPercentage.toFixed(2)}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-[#4CAF50] h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${desktopPercentage}%` }}
+                />
               </div>
             </div>
+          </div>
 
-            {/* Mobile Bar */}
-            <div className="flex items-center space-x-3">
-              <Smartphone className="w-4 h-4 text-gray-600" />
-              <div className="flex-1">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium text-gray-700">Mobile</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {mobilePercentage.toFixed(2)}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${mobilePercentage}%` }}
-                  />
-                </div>
+          {/* Mobile Bar */}
+          <div className="flex items-center space-x-3">
+            <Smartphone className="w-4 h-4 text-gray-600" />
+            <div className="flex-1">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm font-medium text-gray-700">Mobile</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {mobilePercentage.toFixed(2)}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${mobilePercentage}%` }}
+                />
               </div>
             </div>
           </div>
         </div>
+
       </CardContent>
     </Card>
   )

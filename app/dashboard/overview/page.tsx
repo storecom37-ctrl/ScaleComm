@@ -86,8 +86,8 @@ export default function OverviewPage() {
   })
 
   // Filter stores based on selected stores
-  const filteredStores = selectedStores.includes("all") 
-    ? stores 
+  const filteredStores = selectedStores.includes("all")
+    ? stores
     : stores.filter((store: any) => selectedStores.includes(store._id))
 
   const {
@@ -103,7 +103,7 @@ export default function OverviewPage() {
   // Get sync functionality and state
   const { syncGmbData, isSyncing } = useGmbSync()
   const { getStoredTokens } = useGmbAuth()
-  
+
   // Get accessible performance data with simplified filtering
   const {
     data: performanceData,
@@ -127,7 +127,7 @@ export default function OverviewPage() {
   const totalLocations = filteredStores.length
 
   // Determine if we have a connection and data
-  const finalIsConnected = dbConnected && totalLocations > 0
+  const finalIsConnected =  totalLocations > 0
 
   // Get final data arrays
   const finalLocations = dbLocations || []
@@ -165,7 +165,7 @@ export default function OverviewPage() {
     
     // Calculate location-specific metrics
     const locationMetrics: ScoringMetrics = {
-      averageRating: locationReviews.length > 0 
+      averageRating: locationReviews.length > 0
         ? locationReviews.reduce((sum: number, review: any) => sum + review.starRating, 0) / locationReviews.length 
         : 0,
       totalReviews: locationReviews.length,
@@ -174,7 +174,7 @@ export default function OverviewPage() {
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
         return new Date(review.createTime) >= thirtyDaysAgo
       }).length,
-      responseRate: locationReviews.length > 0 
+      responseRate: locationReviews.length > 0
         ? (locationReviews.filter((review: any) => review.reply).length / locationReviews.length) * 100 
         : 0,
       impressions: locationInsights.views,
@@ -252,11 +252,12 @@ export default function OverviewPage() {
               </p>
             </div>
             <div className="flex items-center space-x-3">
-              <Button variant="outline" className="flex items-center space-x-2">
-                <Calendar className="h-4 w-4" />
-                <span>All Time</span>
-                <Navigation className="h-4 w-4" />
-              </Button>
+              <DateRangeFilter
+                selectedDays={selectedDays}
+                onDaysChange={handleDaysChange}
+                onClear={handleClearFilter}
+                className="w-full sm:w-auto"
+              />
               <Button variant="outline" className="flex items-center space-x-2">
                 <Filter className="h-4 w-4" />
                 <span>Store Filter</span>
@@ -282,104 +283,84 @@ export default function OverviewPage() {
         {/* Key Metrics - Modern Card Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
           {/* Total Locations */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 flex items-center">
-                  <Building2 className="h-4 w-4 mr-2" />
-                  Total Locations
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">
-                  {finalIsConnected ? totalLocations : "—"}
-                </p>
-              </div>
+          <div className="flex flex-col justify-around bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div>
+              <p className="text-sm font-medium text-gray-600 flex items-center">
+                <Building2 className="h-4 w-4 mr-2" />
+                Total Locations
+              </p>
+              <p className="text-2xl font-bold text-[#4285F4] mt-2">
+                {finalIsConnected ? totalLocations : "—"}
+              </p>
             </div>
           </div>
 
           {/* Total Views */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 flex items-center">
-                  <Eye className="h-4 w-4 mr-2" />
-                  Total Views
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">
-                  {performanceAccess && !performanceLoading && filteredPerformanceData ? 
-                    (filteredPerformanceData.totalViews > 0 ? formatLargeNumber(filteredPerformanceData.totalViews) : "0") : 
-                    "—"}
-                </p>
-              </div>
-            </div>
+          <div className="flex flex-col justify-around bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <p className="text-sm font-medium text-gray-600 flex items-center">
+              <Eye className="h-4 w-4 mr-2" />
+              Total Views
+            </p>
+            <p className="text-2xl font-bold  mt-2 text-[#4285F4]">
+              {performanceAccess && !performanceLoading && filteredPerformanceData ?
+                (filteredPerformanceData.totalViews > 0 ? formatLargeNumber(filteredPerformanceData.totalViews) : "0") :
+                "—"}
+            </p>
           </div>
 
           {/* Website Clicks */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 flex items-center">
-                  <MousePointerClick className="h-4 w-4 mr-2" />
-                  Website Clicks
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">
-                  {performanceAccess && !performanceLoading && filteredPerformanceData ? 
-                    (filteredPerformanceData.totalWebsiteClicks > 0 ? formatLargeNumber(filteredPerformanceData.totalWebsiteClicks) : "0") : 
-                    "—"}
-                </p>
-              </div>
-            </div>
+          <div className="flex flex-col justify-around bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <p className="text-sm font-medium text-gray-600 flex items-center">
+              <MousePointerClick className="h-4 w-4 mr-2" />
+              Website Clicks
+            </p>
+            <p className="text-2xl font-bold text-[#4285F4] mt-2">
+              {performanceAccess && !performanceLoading && filteredPerformanceData ?
+                (filteredPerformanceData.totalWebsiteClicks > 0 ? formatLargeNumber(filteredPerformanceData.totalWebsiteClicks) : "0") :
+                "—"}
+            </p>
           </div>
 
           {/* Call Clicks */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 flex items-center">
-                  <Phone className="h-4 w-4 mr-2" />
-                  Call Clicks
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">
-                  {performanceAccess && !performanceLoading && filteredPerformanceData ? 
-                    (filteredPerformanceData.totalCallClicks > 0 ? formatLargeNumber(filteredPerformanceData.totalCallClicks) : "0") : 
-                    "—"}
-                </p>
-              </div>
-            </div>
+          <div className="flex flex-col justify-around bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+
+            <p className="text-sm font-medium text-gray-600 flex items-center">
+              <Phone className="h-4 w-4 mr-2" />
+              Call Clicks
+            </p>
+            <p className="text-2xl font-bold text-[#4285F4] mt-2">
+              {performanceAccess && !performanceLoading && filteredPerformanceData ?
+                (filteredPerformanceData.totalCallClicks > 0 ? formatLargeNumber(filteredPerformanceData.totalCallClicks) : "0") :
+                "—"}
+            </p>
           </div>
 
           {/* Direction Requests */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 flex items-center">
-                  <NavigationIcon className="h-4 w-4 mr-2" />
-                  Direction Requests
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">
-                  {performanceAccess && !performanceLoading && filteredPerformanceData ? 
-                    (filteredPerformanceData.totalDirectionRequests > 0 ? formatLargeNumber(filteredPerformanceData.totalDirectionRequests) : "0") : 
-                    "—"}
-                </p>
-              </div>
-            </div>
+          <div className="flex flex-col justify-around bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <p className="text-sm font-medium text-gray-600 flex items-center">
+              <NavigationIcon className="h-4 w-4 mr-2" />
+              Direction Requests
+            </p>
+            <p className="text-2xl font-bold text-[#4285F4] mt-2">
+              {performanceAccess && !performanceLoading && filteredPerformanceData ?
+                (filteredPerformanceData.totalDirectionRequests > 0 ? formatLargeNumber(filteredPerformanceData.totalDirectionRequests) : "0") :
+                "—"}
+            </p>
           </div>
 
           {/* Total Actions */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 flex items-center">
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  Total Actions
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">
-                  {performanceAccess && !performanceLoading && filteredPerformanceData ? 
-                    (filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests > 0 ? 
-                      formatLargeNumber(filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests) : "0") : 
-                    "—"}
-                </p>
-              </div>
-            </div>
+          <div className="flex flex-col justify-around bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+
+            <p className="text-sm font-medium text-gray-600 flex items-center">
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Total Actions
+            </p>
+            <p className="text-2xl font-bold text-[#4285F4] mt-2">
+              {performanceAccess && !performanceLoading && filteredPerformanceData ?
+                (filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests > 0 ?
+                  formatLargeNumber(filteredPerformanceData.totalCallClicks + filteredPerformanceData.totalWebsiteClicks + filteredPerformanceData.totalDirectionRequests) : "0") :
+                "—"}
+            </p>
           </div>
         </div>
 
