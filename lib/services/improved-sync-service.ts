@@ -239,20 +239,20 @@ export class ImprovedSyncService {
     syncState: SyncState
   ): Promise<void> {
     try {
-      console.log(`🔍 Starting reviews fetch for location ${locationId}`)
+      
       
       const reviews = await this.executeWithCircuitBreaker(
         'reviews',
         () => gmbService.getReviews(locationId)
       )
       
-      console.log(`📊 Fetched ${reviews?.length || 0} reviews for location ${locationId}`)
+      
       
       if (reviews && reviews.length > 0) {
-        console.log(`💾 Starting parallel save for ${reviews.length} reviews...`)
+        
         // Save reviews immediately with parallel database operations
         await this.saveReviewsBatchParallel(reviews, syncState, locationId)
-        console.log(`✅ Successfully saved ${reviews.length} reviews for location ${locationId}`)
+        
       } else {
         console.log(`ℹ️ No reviews to save for location ${locationId}`)
       }
@@ -271,20 +271,20 @@ export class ImprovedSyncService {
     syncState: SyncState
   ): Promise<void> {
     try {
-      console.log(`🔍 Starting posts fetch for location ${locationId}`)
+      
       
       const posts = await this.executeWithCircuitBreaker(
         'posts',
         () => gmbService.getPosts(locationId)
       )
       
-      console.log(`📊 Fetched ${posts?.length || 0} posts for location ${locationId}`)
+      
       
       if (posts && posts.length > 0) {
-        console.log(`💾 Starting parallel save for ${posts.length} posts...`)
+        
         // Save posts immediately with parallel database operations
         await this.savePostsBatchParallel(posts, syncState, locationId)
-        console.log(`✅ Successfully saved ${posts.length} posts for location ${locationId}`)
+        
       } else {
         console.log(`ℹ️ No posts to save for location ${locationId}`)
       }
@@ -313,7 +313,7 @@ export class ImprovedSyncService {
       if (insights) {
         // Save insights immediately with parallel database operations
         await this.saveInsightsBatchParallel([insights], syncState, locationId)
-        console.log(`✅ Saved insights for location ${locationId}`)
+        
       }
     } catch (error) {
       console.warn(`Failed to fetch insights for location ${locationId}:`, error)
@@ -347,7 +347,7 @@ export class ImprovedSyncService {
       if (keywords && keywords.length > 0) {
         // Save keywords immediately with parallel database operations
         await this.saveSearchKeywordsBatchParallel(keywords, syncState, locationId)
-        console.log(`✅ Saved ${keywords.length} search keywords for location ${locationId}`)
+        
       }
     } catch (error) {
       console.warn(`Failed to fetch search keywords for location ${locationId}:`, error)
@@ -407,7 +407,7 @@ export class ImprovedSyncService {
       // Save all performance data if we have any
       if (performanceDataArray.length > 0) {
         await this.savePerformanceDataBatchParallel(performanceDataArray, syncState, locationId)
-        console.log(`✅ Saved performance data for ${performanceDataArray.length} date ranges for location ${locationId}`)
+        
       }
     } catch (error) {
       console.warn(`Failed to fetch performance data for location ${locationId}:`, error)
@@ -651,11 +651,7 @@ export class ImprovedSyncService {
 
       // Execute bulk write operation
       const result = await Review.bulkWrite(operations)
-      console.log(`💾 Parallel save completed: ${reviews.length} reviews for location ${locationId}`, {
-        inserted: result.insertedCount,
-        modified: result.modifiedCount,
-        upserted: result.upsertedCount
-      })
+      
     } catch (error) {
       console.error(`Failed to save reviews batch for location ${locationId}:`, error)
       throw error
@@ -728,11 +724,7 @@ export class ImprovedSyncService {
 
       // Execute bulk write operation
       const result = await Post.bulkWrite(operations)
-      console.log(`💾 Parallel save completed: ${posts.length} posts for location ${locationId}`, {
-        inserted: result.insertedCount,
-        modified: result.modifiedCount,
-        upserted: result.upsertedCount
-      })
+  
     } catch (error) {
       console.error(`Failed to save posts batch for location ${locationId}:`, error)
       throw error
@@ -820,11 +812,7 @@ export class ImprovedSyncService {
 
       // Execute bulk write operation
       const result = await Performance.bulkWrite(operations)
-      console.log(`💾 Parallel save completed: ${insights.length} insights for location ${locationId}`, {
-        inserted: result.insertedCount,
-        modified: result.modifiedCount,
-        upserted: result.upsertedCount
-      })
+      
     } catch (error) {
       console.error(`Failed to save insights batch for location ${locationId}:`, error)
       throw error
@@ -888,7 +876,7 @@ export class ImprovedSyncService {
 
       // Execute bulk write operation
       const result = await Performance.bulkWrite(operations)
-      console.log(`💾 Performance batch saved: ${result.upsertedCount} inserted, ${result.modifiedCount} updated`)
+      
 
     } catch (error) {
       console.error('Failed to save performance batch:', error)
@@ -958,11 +946,7 @@ export class ImprovedSyncService {
 
       // Execute bulk write operation
       const result = await Performance.bulkWrite(operations)
-      console.log(`💾 Parallel save completed: ${performanceDataArray.length} performance data points for location ${locationId}`, {
-        inserted: result.insertedCount,
-        modified: result.modifiedCount,
-        upserted: result.upsertedCount
-      })
+    
     } catch (error) {
       console.error(`Failed to save performance data batch for location ${locationId}:`, error)
       throw error
@@ -1048,11 +1032,7 @@ export class ImprovedSyncService {
 
       // Execute bulk write operation
       const result = await SearchKeyword.bulkWrite(operations)
-      console.log(`💾 Parallel save completed: ${keywords.length} search keywords for location ${locationId}`, {
-        inserted: result.insertedCount,
-        modified: result.modifiedCount,
-        upserted: result.upsertedCount
-      })
+     
     } catch (error) {
       console.error(`Failed to save search keywords batch for location ${locationId}:`, error)
       throw error
@@ -1249,7 +1229,7 @@ export class ImprovedSyncService {
     let store = await Store.findOne({ gmbLocationId: locationId, brandId })
     
     if (!store) {
-      console.log(`⚠️ Store not found for location ${locationId}, creating new store...`)
+      
       
       // Try to find by brandId only to get brand info
       const brand = await Brand.findById(brandId)
@@ -1305,7 +1285,7 @@ export class ImprovedSyncService {
         status: 'active'
       })
       
-      console.log(`✅ Created new store "${storeName}" for location ${locationId}: ${store._id}`)
+      
     }
     
     return (store._id as any).toString()
@@ -1384,7 +1364,7 @@ export class ImprovedSyncService {
         { upsert: true, new: true }
       )
       
-      console.log('✅ Sync state saved to database:', syncState.id)
+      
     } catch (error) {
       console.error('❌ Failed to save sync state:', error)
       throw error
@@ -1435,7 +1415,7 @@ export class ImprovedSyncService {
         { upsert: true, new: true }
       )
       
-      console.log('✅ Sync state updated in database:', syncState.id, syncState.status, `${syncState.progress.percentage}%`)
+      
     } catch (error) {
       console.error('❌ Failed to update sync state:', error)
       throw error
@@ -1481,10 +1461,10 @@ export class ImprovedSyncService {
       const syncState = await SyncStateModel.findOne({ id: syncStateId })
       
       if (syncState) {
-        console.log('✅ Sync state loaded from database:', syncState.id, syncState.status, `${syncState.progress.percentage}%`)
+        
         return syncState.toObject() as SyncState
       } else {
-        console.log('⚠️ Sync state not found in database:', syncStateId)
+        
         return null
       }
     } catch (error) {

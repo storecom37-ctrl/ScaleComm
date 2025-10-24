@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const regionCode = searchParams.get('regionCode') || 'US'
     const languageCode = searchParams.get('languageCode') || 'en-US'
 
-    console.log(`🔄 Syncing GMB categories for region: ${regionCode}, language: ${languageCode}`)
+    
 
     // Initialize GMB API service
     const gmbService = new GmbApiServerService(tokens)
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Fetch categories from GMB API
     const categories = await gmbService.getCategories(regionCode, languageCode)
     
-    console.log(`✅ Fetched ${categories.length} categories from GMB API`)
+    
 
     // Process and save categories to database
     let createdCount = 0
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       status: 'active' 
     })
 
-    console.log(`✅ Category sync completed: ${createdCount} created, ${updatedCount} updated, ${skippedCount} skipped`)
+    
 
     return NextResponse.json({
       success: true,

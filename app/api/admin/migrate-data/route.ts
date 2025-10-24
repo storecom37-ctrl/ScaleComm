@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     
     switch (action) {
       case 'migrate':
-        console.log('Starting data migration...')
+        
         const migrationStats = await migrateStoreData()
         
         return NextResponse.json({
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
         })
         
       case 'verify':
-        console.log('Verifying migration...')
+        
         const verification = await verifyMigration()
         
         return NextResponse.json({
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         })
         
       case 'cleanup':
-        console.log('Cleaning up embedded data...')
+        
         await cleanupEmbeddedData()
         
         return NextResponse.json({

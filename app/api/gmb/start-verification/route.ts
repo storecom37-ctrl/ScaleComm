@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
           }
         })
 
-        console.log('Updated store verification history for store:', storeId)
+        
       } catch (dbError) {
         console.error('Error updating store verification history:', dbError)
         // Don't fail the entire request if database update fails

@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     const testData = await request.json()
     const { dataType, data, locationId, brandId, accountId } = testData
     
-    console.log(`🧪 Testing database save for ${dataType}:`, { dataLength: data.length, locationId, brandId })
+    
     
     let result
     const timestamp = new Date()
@@ -137,12 +137,7 @@ export async function POST(request: NextRequest) {
         throw new Error(`Unknown data type: ${dataType}`)
     }
     
-    console.log(`✅ Database save test successful for ${dataType}:`, {
-      inserted: result.insertedCount,
-      modified: result.modifiedCount,
-      upserted: result.upsertedCount,
-      matched: result.matchedCount
-    })
+   
     
     return NextResponse.json({
       success: true,

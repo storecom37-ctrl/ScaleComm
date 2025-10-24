@@ -126,7 +126,7 @@ export class StoreManagementService {
           })
           
           await brand.save()
-          console.log('✅ Auto-created brand for store:', brand.name)
+          
         }
       } else {
         return {
@@ -231,7 +231,7 @@ export class StoreManagementService {
               'settings.gmbIntegration.lastSyncAt': new Date()
             })
 
-            console.log('✅ Store created in GMB:', gmbLocation.name)
+            
           }
         } catch (gmbError) {
           console.error('Error creating store in GMB:', gmbError)
@@ -317,7 +317,7 @@ export class StoreManagementService {
           }
 
           gmbLocation = await gmbService.updateLocation(store.gmbLocationId, locationData)
-          console.log('✅ Store updated in GMB:', gmbLocation?.name)
+          
         } catch (gmbError) {
           console.error('Error updating store in GMB:', gmbError)
           // Store was updated in database, but GMB update failed
@@ -356,11 +356,11 @@ export class StoreManagementService {
 
       // Get account info
       const accountInfo = await gmbService.getAccountInfo()
-      console.log('🔄 Store Sync - Account info:', accountInfo)
+      
 
       // Get all accounts
       const accounts = await gmbService.getAccounts()
-      console.log('🔄 Store Sync - Available accounts:', accounts.length)
+      
 
       if (accounts.length === 0) {
         return {
@@ -378,11 +378,11 @@ export class StoreManagementService {
       // Process each account
       for (const account of accounts) {
         try {
-          console.log(`🔄 Processing account: ${account.name}`)
+          
           
           // Get locations from GMB
           const locations = await gmbService.getLocations(account.name)
-          console.log(`🔄 Found ${locations.length} locations in account ${account.name}`)
+          
 
           // Find or create brand for this account
           let brand = await Brand.findOne({ 
@@ -427,7 +427,7 @@ export class StoreManagementService {
             })
             
             await brand.save()
-            console.log('✅ Auto-created brand for GMB sync:', brand.name)
+            
           } else {
             // Update brand with latest GMB info
             await Brand.findByIdAndUpdate(brand._id, {
@@ -435,7 +435,7 @@ export class StoreManagementService {
               'settings.gmbIntegration.gmbAccountName': account.accountName || accountInfo.name,
               'settings.gmbIntegration.lastSyncAt': new Date()
             })
-            console.log('✅ Updated brand GMB integration:', brand.name)
+            
           }
 
           // Process each location
@@ -471,7 +471,7 @@ export class StoreManagementService {
 
                 await Store.findByIdAndUpdate(store._id, updateData)
                 totalStoresUpdated++
-                console.log(`✅ Updated store: ${store.name}`)
+                
               } else {
                 // Create new store
                 const baseSlug = location.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').trim()
@@ -544,10 +544,10 @@ export class StoreManagementService {
 
                 if (store?.isNew) {
                   totalStoresCreated++
-                  console.log(`✅ Created new store: ${store.name}`)
+                  
                 } else {
                   totalStoresUpdated++
-                  console.log(`✅ Updated existing store: ${store?.name}`)
+                  
                 }
               }
             } catch (storeError) {

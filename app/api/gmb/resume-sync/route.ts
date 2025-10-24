@@ -169,7 +169,7 @@ async function resumeSyncGmbData(
       }
     })
 
-    console.log('✅ Resume sync completed successfully!')
+    
     safeClose()
 
   } catch (error: unknown) {

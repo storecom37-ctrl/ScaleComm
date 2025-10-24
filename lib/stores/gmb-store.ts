@@ -231,15 +231,15 @@ export const useGmbStore = create<GmbStore>()((set, get) => ({
   
   debugState: () => {
     const state = get()
-    console.log('=== GMB Store Debug State ===')
-    console.log('isConnected:', state.isConnected)
-    console.log('locations count:', state.locations.length)
-    console.log('reviews count:', state.reviews.length)
-    console.log('posts count:', state.posts.length)
-    console.log('reviewsApiAvailable:', state.reviewsApiAvailable)
-    console.log('reviewsApiError:', state.reviewsApiError)
-    console.log('lastSyncAt:', state.lastSyncAt)
-    console.log('===========================')
+    
+    
+    
+    
+    
+    
+    
+    
+    
     return state
   },
 }))

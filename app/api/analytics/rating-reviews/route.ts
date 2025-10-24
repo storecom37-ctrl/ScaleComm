@@ -326,13 +326,6 @@ export async function GET(request: NextRequest) {
       } : { total: 0, positive: 0, negative: 0, neutral: 0 }
     }
 
-    console.log('📊 Rating Reviews API - Returning data:', {
-      totalReviews: result.totalReviews,
-      averageRating: result.averageRating,
-      monthlySentimentCount: result.monthlySentiment.length,
-      reviewsLast7Days: result.reviewsLast7Days,
-      reviewsLast30Days: result.reviewsLast30Days
-    })
 
     return NextResponse.json(result, {
       headers: {

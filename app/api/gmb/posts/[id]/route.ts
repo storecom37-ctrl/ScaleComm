@@ -30,12 +30,12 @@ export async function DELETE(
       )
     }
 
-    console.log('Deleting post with ID:', postId)
+    
     
     // Delete the post from GMB
     const result = await gmbService.deletePost(postId)
     
-    console.log('Post deletion result:', result)
+    
 
     return NextResponse.json({
       success: true,
@@ -79,12 +79,12 @@ export async function GET(
       )
     }
 
-    console.log('Fetching post with ID:', postId)
+    
     
     // Get the post from GMB
     const post = await gmbService.getPost(postId)
     
-    console.log('Post fetch result:', post)
+    
 
     return NextResponse.json({
       success: true,

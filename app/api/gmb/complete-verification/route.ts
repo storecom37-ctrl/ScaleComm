@@ -50,11 +50,7 @@ export async function POST(request: NextRequest) {
           }
         )
 
-        if (success) {
-          console.log('Updated store verification completion for store:', storeId)
-        } else {
-          console.warn('Could not find matching verification attempt for store:', storeId)
-        }
+      
       } catch (dbError) {
         console.error('Error updating store verification completion:', dbError)
         // Don't fail the entire request if database update fails

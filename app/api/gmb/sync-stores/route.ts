@@ -23,11 +23,11 @@ export async function POST(request: NextRequest) {
 
     // Get account info
     const accountInfo = await gmbService.getAccountInfo()
-    console.log('🔄 GMB Sync Stores - Account info:', accountInfo)
+    
 
     // Get all accounts
     const accounts = await gmbService.getAccounts()
-    console.log('🔄 GMB Sync Stores - Available accounts:', accounts.length)
+    
 
     if (accounts.length === 0) {
       return NextResponse.json({
@@ -51,11 +51,11 @@ export async function POST(request: NextRequest) {
     // Process each account
     for (const account of accounts) {
       try {
-        console.log(`🔄 Processing account: ${account.name}`)
+        
         
         // Get locations from GMB
         const locations = await gmbService.getLocations(account.name)
-        console.log(`🔄 Found ${locations.length} locations in account ${account.name}`)
+        
 
         // Find or create brand for this account
         let brand = await Brand.findOne({ 
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
           })
           
           await brand.save()
-          console.log('✅ Auto-created brand for GMB sync:', brand.name)
+          
         } else {
           // Update brand with latest GMB info
           await Brand.findByIdAndUpdate(brand._id, {
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
             'settings.gmbIntegration.gmbAccountName': account.accountName || accountInfo.name,
             'settings.gmbIntegration.lastSyncAt': new Date()
           })
-          console.log('✅ Updated brand GMB integration:', brand.name)
+          
         }
 
         // Process each location
@@ -174,10 +174,10 @@ export async function POST(request: NextRequest) {
 
             if (result.isNew) {
               totalStoresCreated++
-              console.log(`✅ Created new store: ${result.name}`)
+              
             } else {
               totalStoresUpdated++
-              console.log(`✅ Updated existing store: ${result.name}`)
+              
             }
           } catch (storeError) {
             console.error(`❌ Error processing store ${location.name}:`, storeError)

@@ -482,7 +482,7 @@ export class SyncOrchestrator {
             if (processedPerformanceData.length > 0) {
               const locationData = locationMap.get(locationId)
               await this.saveDataBatch('performance', processedPerformanceData, locationId, locationData)
-              console.log(`✅ Saved ${processedPerformanceData.length} performance records for location ${locationId}`)
+              
             }
           }
         }
@@ -516,7 +516,7 @@ export class SyncOrchestrator {
         throw new Error('Sync state not initialized')
       }
 
-      console.log(`💾 Saving ${data.length} ${dataType} records for location ${locationId}`)
+      
       
       // Add locationId to each data item for proper store association
       const dataWithLocation = data.map(item => ({
@@ -527,7 +527,7 @@ export class SyncOrchestrator {
       // Use the actual ImprovedSyncService to save data with location data for proper store naming
       await ImprovedSyncService.saveDataBatch(dataType, dataWithLocation, this.syncState, locationData)
       
-      console.log(`✅ Successfully saved ${data.length} ${dataType} records for location ${locationId}`)
+      
       
     } catch (error) {
       console.error(`❌ Failed to save ${dataType} batch for location ${locationId}:`, error)
@@ -552,7 +552,7 @@ export class SyncOrchestrator {
       this.syncState.lastUpdatedAt = new Date()
       // Use ImprovedSyncService to update sync state in database
       await ImprovedSyncService.updateSyncState(this.syncState)
-      console.log('✅ Updated sync state:', this.syncState.id, this.syncState.status, `${this.syncState.progress.percentage}%`)
+      
     }
   }
 
@@ -563,11 +563,7 @@ export class SyncOrchestrator {
     try {
       // Use ImprovedSyncService to load sync state from database
       const syncState = await ImprovedSyncService.loadSyncState(syncStateId)
-      if (syncState) {
-        console.log('✅ Loaded sync state:', syncState.id, syncState.status, `${syncState.progress.percentage}%`)
-      } else {
-        console.log('⚠️ Sync state not found:', syncStateId)
-      }
+   
       return syncState
     } catch (error) {
       console.error('❌ Failed to load sync state:', error)

@@ -30,14 +30,14 @@ export async function POST(request: NextRequest) {
 
     await connectDB()
     
-    console.log('🔄 Starting posts sync for account:', currentAccountId)
+    
     
     // Initialize GMB API service
     const gmbService = new GmbApiServerService(tokens)
     
     // Get all accounts and locations
     const accounts = await gmbService.getAccounts()
-    console.log(`📊 Found ${accounts.length} GMB accounts`)
+    
     
     let totalPostsFetched = 0
     let totalPostsSaved = 0
@@ -47,14 +47,14 @@ export async function POST(request: NextRequest) {
     // Process each account
     for (const account of accounts) {
       try {
-        console.log(`🏢 Processing account: ${account.name}`)
+        
         const locations = await gmbService.getLocations(account.name)
-        console.log(`📍 Found ${locations.length} locations for account ${account.name}`)
+        
         
         // Process each location
         for (const location of locations) {
           try {
-            console.log(`📝 Fetching posts for location: ${location.name}`)
+            
             const posts = await gmbService.getPosts(location.id)
             
             if (posts && posts.length > 0) {
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
               allPosts.push(...postsWithLocation)
               totalPostsFetched += posts.length
               
-              console.log(`✅ Fetched ${posts.length} posts for ${location.name}`)
+              
             } else {
               console.log(`ℹ️ No posts found for ${location.name}`)
             }
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     // Save all posts to database using ImprovedSyncService
     if (allPosts.length > 0) {
       try {
-        console.log(`💾 Saving ${allPosts.length} posts to database...`)
+        
         
         // Create a mock sync state for the posts sync
         const syncState = {
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
         syncState.currentStep = 'completed'
         await ImprovedSyncService.updateSyncState(syncState)
         
-        console.log(`✅ Successfully saved ${totalPostsSaved} posts to database`)
+        
       } catch (saveError) {
         console.error('❌ Failed to save posts to database:', saveError)
         errors.push({

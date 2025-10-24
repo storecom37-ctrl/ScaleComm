@@ -18,11 +18,11 @@ export async function GET(request: NextRequest) {
       tokens = await getGmbTokensFromRequest()
       if (tokens) {
         targetEmail = await getCurrentUserEmail(tokens)
-        console.log('🔍 Account API - Using current user email:', targetEmail)
+        
         
         // If we can't get email from tokens, tokens might be invalid
         if (!targetEmail) {
-          console.log('🔍 Account API - Could not get email from tokens, tokens may be invalid')
+          
           return NextResponse.json({
             success: false,
             error: 'Invalid or expired GMB tokens'
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     
     // If no target email and no tokens, user is not authenticated
     if (!targetEmail && !email && !id) {
-      console.log('🔍 Account API - No authentication found')
+      
       return NextResponse.json({
         success: false,
         error: 'No GMB authentication found'
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     
     // Only search if we have a valid query
     if (Object.keys(query).length === 0) {
-      console.log('🔍 Account API - No valid query parameters')
+      
       return NextResponse.json({
         success: false,
         error: 'No valid search parameters provided'
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       ...query,
       'settings.gmbIntegration.connected': true 
     }).lean()
-    console.log('🔍 Account API - Found brand with query:', query, '- Result:', !!brand)
+    
     
     if (!brand) {
       return NextResponse.json({

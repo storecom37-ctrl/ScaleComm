@@ -115,7 +115,7 @@ export function VerificationModal({
       const result = await response.json()
 
       if (result.success) {
-        console.log('Verification options received:', JSON.stringify(result.data, null, 2))
+        
         setVerificationOptions(result.data)
       } else {
         setError(result.error || 'Failed to fetch verification options')
@@ -201,7 +201,7 @@ export function VerificationModal({
         )
         
         if (selectedOption) {
-          console.log('Selected option:', selectedOption)
+          
           // Use the exact structure returned by fetchVerificationOptions
           verificationRequestOptions = {
             method: selectedOption.verificationMethod,
@@ -219,7 +219,7 @@ export function VerificationModal({
             }
           }
         } else {
-          console.log('No selectedOption found, using fallback')
+          
           // Fallback if no option found
           verificationRequestOptions = {
             method: selectedMethod.toUpperCase(),
@@ -264,9 +264,9 @@ export function VerificationModal({
         verificationRequestOptions.phoneNumber = verificationRequestOptions.phoneNumber.replace(/\s+/g, '')
       }
       
-      console.log('Final verification request options:', JSON.stringify(verificationRequestOptions, null, 2))
-      console.log('Phone number cleaned:', verificationRequestOptions.phoneNumber)
-      console.log('Language code:', verificationRequestOptions.languageCode)
+      
+      
+      
       
       const response = await fetch('/api/gmb/start-verification', {
         method: 'POST',

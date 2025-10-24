@@ -37,7 +37,6 @@ export function useStores(options: UseStoresOptions = {}) {
       if (accountId) params.append('accountId', accountId)
 
       const url = `/api/stores?${params.toString()}`
-      console.log('Fetching stores from:', url)
 
       const response = await fetch(url, {
         method: 'GET',
@@ -52,7 +51,6 @@ export function useStores(options: UseStoresOptions = {}) {
       }
 
       const result = await response.json()
-      console.log('Stores fetched successfully:', result)
 
       if (result.success) {
         setStores(result.data || [])
@@ -66,7 +64,6 @@ export function useStores(options: UseStoresOptions = {}) {
       
       // Retry logic for network errors
       if (retryCount < 3 && (err instanceof TypeError || (err instanceof Error && err.message.includes('Failed to fetch')))) {
-        console.log(`Retrying stores fetch (attempt ${retryCount + 1}/3)...`)
         setTimeout(() => fetchStores(retryCount + 1), 1000 * (retryCount + 1))
         return
       }

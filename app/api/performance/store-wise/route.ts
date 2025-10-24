@@ -56,21 +56,11 @@ export async function GET(request: NextRequest) {
       })
     }
     
-    console.log('🔍 Store-wise Performance API - Query filters:', query)
+    
     
     // Debug: Check what performance data exists in database
     const allPerformanceData = await Performance.find({ status: 'active' }).limit(5)
-    console.log('🔍 Store-wise Performance API - Sample performance data:', allPerformanceData.map(p => ({
-      id: p._id,
-      storeId: p.storeId,
-      period: {
-        startTime: p.period?.startTime,
-        endTime: p.period?.endTime,
-        dateRange: p.period?.dateRange
-      },
-      views: p.views,
-      actions: p.actions
-    })))
+  
     
     // Debug: Check what dateRange.days values exist
     const daysDistribution = await Performance.aggregate([
@@ -78,7 +68,7 @@ export async function GET(request: NextRequest) {
       { $group: { _id: '$period.dateRange.days', count: { $sum: 1 } } },
       { $sort: { _id: 1 as const } }
     ])
-    console.log('🔍 Store-wise Performance API - Days distribution:', daysDistribution)
+    
     
     if (periodType) query['period.periodType'] = periodType
     
@@ -93,11 +83,11 @@ export async function GET(request: NextRequest) {
         'period.dateRange.days': parseInt(days) 
       })
       
-      console.log(`🔍 Store-wise Performance API - Exact match for ${days} days: ${exactMatchCount} records`)
+      
       
       // If no exact match, fallback to date range filtering
       if (exactMatchCount === 0) {
-        console.log(`🔍 Store-wise Performance API - No exact match for ${days} days, falling back to date range filtering`)
+        
         delete query['period.dateRange.days']
         
         const endTime = new Date()
@@ -121,7 +111,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Debug: Log the final query
-    console.log('🔍 Store-wise Performance API - Final query for aggregation:', JSON.stringify(query, null, 2))
+    
     
     // Execute aggregation pipeline for store-wise analytics
     const storeWiseAggregation = await Performance.aggregate([

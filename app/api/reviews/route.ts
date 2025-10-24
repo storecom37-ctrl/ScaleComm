@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (tokens) {
       // Get all account IDs that the current user has access to
       accessibleAccountIds = await getAllBrandAccountIds()
-      console.log('🔍 Reviews API - Accessible GMB Account IDs for current user:', accessibleAccountIds)
+      
     }
     
     // Build query
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     if (storeId) {
       try {
         query.storeId = new mongoose.Types.ObjectId(storeId)
-        console.log('🔍 Reviews API - Filtering by store ID:', storeId)
+        
       } catch (error) {
         console.error('Invalid store ID format:', storeId)
         return NextResponse.json({
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     if (brandId) {
       try {
         query.brandId = new mongoose.Types.ObjectId(brandId)
-        console.log('🔍 Reviews API - Filtering by brand ID:', brandId)
+        
       } catch (error) {
         console.error('Invalid brand ID format:', brandId)
         return NextResponse.json({
@@ -64,10 +64,10 @@ export async function GET(request: NextRequest) {
     // Filter by response status (replied/unresponded)
     if (hasResponse === 'true') {
       query.hasResponse = true
-      console.log('🔍 Reviews API - Filtering by replied reviews')
+      
     } else if (hasResponse === 'false') {
       query.hasResponse = false
-      console.log('🔍 Reviews API - Filtering by unresponded reviews')
+      
     }
     
     // Filter by star rating
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       const ratingNum = parseInt(rating)
       if (ratingNum >= 1 && ratingNum <= 5) {
         query.starRating = ratingNum
-        console.log('🔍 Reviews API - Filtering by rating:', ratingNum)
+        
       }
     }
     
@@ -85,18 +85,18 @@ export async function GET(request: NextRequest) {
         { comment: { $regex: search, $options: 'i' } },
         { 'reviewer.displayName': { $regex: search, $options: 'i' } }
       ]
-      console.log('🔍 Reviews API - Searching for:', search)
+      
     }
     
     // Show all reviews from accessible GMB accounts (remove account-specific filtering)
     if (accessibleAccountIds.length > 0) {
       // Show all reviews from all accessible GMB accounts
       query.accountId = { $in: accessibleAccountIds }
-      console.log('🔍 Reviews API - Showing all reviews from accessible account IDs:', accessibleAccountIds)
+      
     } else {
       // If no GMB authentication, show no reviews (user needs to connect GMB first)
       query.accountId = 'no-access'
-      console.log('🔍 Reviews API - No GMB authentication - showing no reviews')
+      
     }
     
     // Execute query with population

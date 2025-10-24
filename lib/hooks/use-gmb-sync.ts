@@ -89,7 +89,7 @@ export function useGmbSync() {
                 switch (data.type) {
                   case 'progress':
                     if (data.progress) {
-                      console.log('Progress update received:', data.progress)
+                      
                       setSyncProgress({
                         step: data.progress.progress || 1,
                         totalSteps: data.progress.total || 5,
@@ -125,7 +125,7 @@ export function useGmbSync() {
 
       if (finalResult) {
         setLastSyncResult(finalResult)
-        console.log('GMB sync completed:', finalResult)
+        
         return finalResult
       } else {
         throw new Error('Sync completed but no result received')

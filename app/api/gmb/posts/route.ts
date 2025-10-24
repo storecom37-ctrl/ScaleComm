@@ -86,11 +86,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('Creating post with data:', { locationName, postData })
+    
     
     const createdPost = await gmbService.createPost(locationName, postData)
     
-    console.log('Post creation result:', createdPost)
+    
 
     return NextResponse.json({
       success: true,
