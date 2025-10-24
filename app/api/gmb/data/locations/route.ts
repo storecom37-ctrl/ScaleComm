@@ -6,7 +6,7 @@ import { GmbApiServerService } from '@/lib/server/gmb-api-server'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('Locations API - Starting request')
+    
     
     const { searchParams } = new URL(request.url)
     const requestedAccountId = searchParams.get('accountId')
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     
     // Try to get authentication tokens
     const tokens = await getGmbTokensFromRequest()
-    console.log('Locations API - Tokens found:', !!tokens)
+    
     
     if (!tokens) {
       return NextResponse.json({
@@ -26,16 +26,16 @@ export async function GET(request: NextRequest) {
     let currentAccountId: string | null = null
     
     // Get current user's account ID from tokens
-    console.log('Locations API - Getting account ID from tokens...')
+    
     currentAccountId = await getCurrentAccountId(tokens)
-    console.log('Locations API - Account ID from tokens:', currentAccountId)
+    
 
     await connectDB()
     
     // Get current user's email from tokens to filter by user
     let currentUserEmail: string | null = null
     currentUserEmail = await getCurrentUserEmail(tokens)
-    console.log('Locations API - Current user email:', currentUserEmail)
+    
     
     // Get the connected brand for the current user
     let brand
@@ -44,13 +44,13 @@ export async function GET(request: NextRequest) {
         email: currentUserEmail,
         'settings.gmbIntegration.connected': true
       }).lean()
-      console.log('Locations API - Found brand for user email:', currentUserEmail, '- Result:', !!brand)
+      
     } else {
       // Fallback to the first connected brand
       brand = await Brand.findOne({ 
         'settings.gmbIntegration.connected': true
       }).lean()
-      console.log('Locations API - Using fallback brand - Result:', !!brand)
+      
     }
     
     if (!brand) {
@@ -62,28 +62,28 @@ export async function GET(request: NextRequest) {
     
     // Get all account IDs for the connected brand
     const connectedAccountIds = await getAllBrandAccountIds()
-    console.log('Locations API - Connected account IDs:', connectedAccountIds)
+    
     
     // Initialize GMB API service to fetch fresh location data
     const gmbService = new GmbApiServerService(tokens)
     
     // Fetch accounts from GMB
     const accounts = await gmbService.getAccounts()
-    console.log('Locations API - Found GMB accounts:', accounts.length)
+    
     
     // Fetch locations from ALL accounts
     let allLocations: any[] = []
     for (const account of accounts) {
       try {
         const locations = await gmbService.getLocations(account.name)
-        console.log(`Locations API - Found ${locations.length} locations in account ${account.name}`)
+        
         allLocations = [...allLocations, ...locations]
       } catch (error) {
         console.error(`Error fetching locations for account ${account.name}:`, error)
       }
     }
     
-    console.log('Locations API - Total locations from GMB:', allLocations.length)
+    
     
     // If a specific account is requested, filter by that account
     let accountIdToFilter = requestedAccountId
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       ? allLocations.filter(loc => loc.id.includes(`accounts/${accountIdToFilter}/`))
       : allLocations
     
-    console.log('Locations API - Filtered locations:', filteredLocations.length)
+    
     
     // Get existing stores from database to merge data
     const storeQuery: Record<string, unknown> = {
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     }
     
     const stores = await Store.find(storeQuery).lean()
-    console.log('Locations API - Found database stores:', stores.length)
+    
     
     // Create a map of stores by gmbLocationId for quick lookup
     const storeMap = new Map()

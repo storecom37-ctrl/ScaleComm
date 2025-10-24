@@ -62,7 +62,6 @@ export class BusinessInsightsGenerator {
     const endDate = new Date()
     const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000))
     
-    console.log(`📅 Analyzing business insights from ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]} (${days} days)`)
 
     // Get reviews for the entity within the specified time range
     const query: any = {

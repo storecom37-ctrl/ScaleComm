@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const languageCode = searchParams.get('languageCode') || 'en-US'
     const search = searchParams.get('search') || ''
 
-    console.log(`🔍 Fetching GMB categories for region: ${regionCode}, language: ${languageCode}`)
+    
 
     // Initialize GMB API service
     const gmbService = new GmbApiServerService(tokens)
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     // Fetch categories from GMB API
     const categories = await gmbService.getCategories(regionCode, languageCode)
     
-    console.log(`✅ Fetched ${categories.length} GMB categories`)
+    
 
     // Filter categories based on search term if provided
     let filteredCategories = categories

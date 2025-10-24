@@ -55,11 +55,7 @@ export default function GmbSyncButton({ onSyncComplete, className }: GmbSyncButt
         throw new Error('No GMB tokens found. Please connect to GMB first.')
       }
 
-      console.log('🚀 Starting GMB sync with tokens:', {
-        hasAccessToken: !!tokensData.tokens.access_token,
-        hasRefreshToken: !!tokensData.tokens.refresh_token,
-        tokenType: tokensData.tokens.token_type
-      })
+      
 
       const result = await syncGmbData(tokensData.tokens)
       
@@ -67,7 +63,7 @@ export default function GmbSyncButton({ onSyncComplete, className }: GmbSyncButt
       await getSyncStats()
       
       // Auto-refresh all data after successful sync
-      console.log('🔄 Auto-refreshing data after sync completion...')
+      
       await refreshAll()
       
       // Call completion callback

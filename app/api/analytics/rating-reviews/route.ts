@@ -35,8 +35,7 @@ export async function GET(request: NextRequest) {
       matchQuery.accountId = { $in: accessibleAccountIds }
     }
 
-    console.log('🔍 Rating Reviews API - Querying database with match:', matchQuery)
-
+   
     // Get total reviews and average rating
     const ratingStats = await Review.aggregate([
       { $match: matchQuery },
@@ -319,13 +318,6 @@ export async function GET(request: NextRequest) {
       } : { total: 0, positive: 0, negative: 0, neutral: 0 }
     }
 
-    console.log('📊 Rating Reviews API - Returning data:', {
-      totalReviews: result.totalReviews,
-      averageRating: result.averageRating,
-      monthlySentimentCount: result.monthlySentiment.length,
-      reviewsLast7Days: result.reviewsLast7Days,
-      reviewsLast30Days: result.reviewsLast30Days
-    })
 
     return NextResponse.json(result)
 

@@ -190,9 +190,7 @@ export default function StoreCreateModal({
   const [open, setOpen] = useState(false)
   
   // Debug open state changes
-  useEffect(() => {
-    console.log('StoreCreateModal - open state changed:', open)
-  }, [open])
+
   const [currentTab, setCurrentTab] = useState("details")
   const [formData, setFormData] = useState<StoreFormData>(initialFormData)
   const [loading, setLoading] = useState(false)
@@ -208,10 +206,10 @@ export default function StoreCreateModal({
 
   // Handle external modal state control
   useEffect(() => {
-    console.log('StoreCreateModal - isOpen changed:', isOpen)
+    
     if (isOpen !== undefined) {
       setOpen(isOpen)
-      console.log('StoreCreateModal - Modal state set to:', isOpen)
+      
     }
   }, [isOpen])
 
@@ -222,7 +220,7 @@ export default function StoreCreateModal({
         const response = await fetch('/api/brands')
         const result = await response.json()
         if (result.success) {
-          console.log('StoreCreateModal - Fetched brands:', result.data)
+          
           setBrands(result.data)
         } else {
           console.error('StoreCreateModal - Failed to fetch brands:', result.error)
@@ -244,13 +242,13 @@ export default function StoreCreateModal({
         const syncStatus = await syncStatusResponse.json()
         
         if (syncStatus.success && syncStatus.data.needsSync) {
-          console.log('StoreCreateModal - Categories need syncing, syncing now...')
+          
           // Sync categories from GMB API
           const syncResponse = await fetch('/api/gmb/categories/sync', { method: 'POST' })
           const syncResult = await syncResponse.json()
           
           if (syncResult.success) {
-            console.log('StoreCreateModal - Categories synced successfully:', syncResult.data)
+            
           } else {
             console.error('StoreCreateModal - Failed to sync categories:', syncResult.error)
           }
@@ -260,7 +258,7 @@ export default function StoreCreateModal({
         const response = await fetch('/api/gmb/categories/list')
         const result = await response.json()
         if (result.success) {
-          console.log('StoreCreateModal - Fetched GMB categories:', result.data.categories.all)
+          
           setGmbCategories(result.data.categories.all)
         } else {
           console.error('StoreCreateModal - Failed to fetch GMB categories:', result.error)
@@ -328,11 +326,10 @@ export default function StoreCreateModal({
         status: editStore.status || 'active'
       }
       
-      console.log('StoreCreateModal - New form data:', newFormData)
       setFormData(newFormData)
-      console.log('StoreCreateModal - Form data set successfully')
+      
     } else {
-      console.log('StoreCreateModal - No editStore, using initial form data')
+      
       setFormData(initialFormData)
     }
   }, [editStore])
@@ -599,14 +596,7 @@ export default function StoreCreateModal({
       const url = isEditMode ? `/api/stores/${editStore._id}` : '/api/stores'
       const method = isEditMode ? 'PUT' : 'POST'
       
-      console.log('Store Create Modal - Submit Debug:', {
-        isEditMode,
-        editStoreId: editStore?._id,
-        editStoreName: editStore?.name,
-        url,
-        method
-      })
-      
+    
       const response = await fetch(url, {
         method,
         headers: {

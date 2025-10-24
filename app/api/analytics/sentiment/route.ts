@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       if (!force) {
         const cached = responseCache.get(cacheKey)
         if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-          console.log(`📊 Using cached API response for ${entityType}: ${entityId}`)
+          
           return NextResponse.json({
             success: true,
             data: cached.data,
@@ -60,10 +60,10 @@ export async function GET(request: NextRequest) {
       let analytics
       
         if (needsAnalysis) {
-          console.log(`🔄 Analyzing sentiment for ${entityType}: ${entityId} (${days} days)`)
+          
           analytics = await sentimentWorkflow.analyzeAndSave(entityId!, entityType, days)
         } else {
-          console.log(`📊 Using cached sentiment analytics for ${entityType}: ${entityId}`)
+          
           analytics = await sentimentWorkflow.getAnalytics(entityId!, entityType)
           
           if (!analytics) {

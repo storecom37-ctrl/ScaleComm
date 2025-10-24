@@ -74,7 +74,7 @@ async function fetchIVRCalls(endpoint: string): Promise<IVRCallRaw[]> {
     // Handle different response formats
     if (data.status === 200 && data.message) {
       // This appears to be an "add" endpoint, return sample data for demonstration
-      console.log(`API endpoint ${endpoint} returned: ${data.message}`)
+      
       
       // Return sample data based on the endpoint
       const brandName = endpoint.includes('306') ? 'Sandoz' : 

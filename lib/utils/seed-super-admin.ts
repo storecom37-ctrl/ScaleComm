@@ -16,7 +16,7 @@ export async function seedSuperAdmin() {
     const existingAdmin = await User.findOne({ email: superAdminEmail })
 
     if (existingAdmin) {
-      console.log('✅ Super admin already exists')
+      
       return {
         success: true,
         message: 'Super admin already exists',
@@ -38,10 +38,10 @@ export async function seedSuperAdmin() {
 
     await superAdmin.save()
 
-    console.log('✅ Super admin created successfully')
-    console.log('Email:', superAdminEmail)
-    console.log('Password: Admin@123')
-    console.log('⚠️  Please change the password after first login')
+    
+    
+    
+    
 
     return {
       success: true,

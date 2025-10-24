@@ -40,8 +40,7 @@ export function ImpressionAnalytics({ accountId, locationId }: ImpressionAnalyti
       setLoading(true)
       setError(null)
       
-      console.log('🔍 ImpressionAnalytics - Fetching data with:', { accountId, locationId })
-      
+
       const response = await fetch(
         `/api/analytics/impressions?accountId=${accountId || 'all'}&locationId=${locationId || 'all'}`
       )
@@ -51,7 +50,6 @@ export function ImpressionAnalytics({ accountId, locationId }: ImpressionAnalyti
       }
       
       const result = await response.json()
-      console.log('📊 ImpressionAnalytics - Received data:', result)
       setData(result)
     } catch (err) {
       console.error('Error fetching impression data:', err)

@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const languageCode = searchParams.get('languageCode') || 'en-US'
     const search = searchParams.get('search') || ''
 
-    console.log(`🔍 Fetching GMB categories from database for region: ${regionCode}, language: ${languageCode}`)
+    
 
     // Build query
     const query: any = {
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       .sort({ displayName: 1 })
       .lean()
     
-    console.log(`✅ Fetched ${categories.length} categories from database`)
+    
 
     // Format categories for frontend dropdown
     const formattedCategories = categories.map((category: any) => ({

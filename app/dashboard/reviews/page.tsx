@@ -180,23 +180,7 @@ export default function ReviewsPage() {
   // Get sync state from store (for UI controls only)
   const { isSyncing, reviewsApiAvailable, reviewsApiError, debugState } = useGmbStore()
 
-  // Debug logging for filtering
-  useEffect(() => {
-    console.log('🔍 Reviews filtering debug:', {
-      currentView,
-      hasResponseParam: currentView === 'main' ? false : currentView === 'replied' ? true : undefined,
-      totalCount: reviewsTotalCount,
-      reviewsLength: dbReviews?.length || 0,
-      isLoading: reviewsLoading,
-      sampleReviews: dbReviews?.slice(0, 2).map((r: any) => ({
-        id: r._id?.toString().substring(0, 8),
-        hasResponse: r.hasResponse,
-        reviewer: r.reviewer?.displayName,
-        profilePhotoUrl: r.reviewer?.profilePhotoUrl,
-        hasProfilePhoto: !!r.reviewer?.profilePhotoUrl
-      }))
-    })
-  }, [currentView, reviewsTotalCount, dbReviews, reviewsLoading])
+
   
   // Use account-specific stores and database reviews
   const finalStores = accountStores || []
@@ -574,7 +558,7 @@ export default function ReviewsPage() {
     const selectedReviewsData = filteredAndSortedReviews.filter((review: any) => 
       selectedReviews.has(review.id)
     )
-    console.log('Export reviews:', selectedReviewsData)
+    
     // TODO: Implement export functionality
   }
   
@@ -591,7 +575,7 @@ export default function ReviewsPage() {
 
   const handlePostReply = async (reviewId: string, comment: string): Promise<boolean> => {
     try {
-      console.log('📝 Posting reply to review:', reviewId, 'Comment:', comment)
+      
       
       const response = await fetch(`/api/gmb/reviews/${reviewId}/reply`, {
         method: 'POST',
@@ -609,7 +593,7 @@ export default function ReviewsPage() {
       }
 
       if (data.success) {
-        console.log('✅ Reply posted successfully:', data)
+        
         // Refresh the reviews data to show the updated response status
         setTimeout(() => {
           refreshReviews()

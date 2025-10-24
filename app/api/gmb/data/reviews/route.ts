@@ -31,11 +31,11 @@ export async function GET(request: NextRequest) {
     if (tokens) {
       // Get current user's email for logging
       currentUserEmail = await getCurrentUserEmail(tokens)
-      console.log('🔍 GMB Reviews API - Current user email:', currentUserEmail)
+      
       
       // Get all account IDs that the current user has access to
       accessibleAccountIds = await getAllBrandAccountIds()
-      console.log('🔍 GMB Reviews API - Accessible GMB Account IDs for current user:', accessibleAccountIds)
+      
     }
     
     // Determine which account to filter by
@@ -46,9 +46,9 @@ export async function GET(request: NextRequest) {
       if (accessibleAccountIds.length > 0) {
         // Use the first accessible account (or could be modified to show all)
         accountIdToUse = accessibleAccountIds[0]
-        console.log('🔍 GMB Reviews API - Using first accessible account ID:', accountIdToUse)
+        
       } else {
-        console.log('🔍 GMB Reviews API - No accessible accounts found')
+        
         // Return empty result if no accessible accounts
         return NextResponse.json({
           success: true,
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    console.log('Reviews API - Using account ID:', accountIdToUse)
+    
     
     // Build query for reviews with account-based filtering
     const query: Record<string, unknown> = { status }
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
           { gmbLocationId: { $regex: `accounts/${accountIdToUse}/`, $options: 'i' } }
         ]
       }).select('_id name gmbLocationId').limit(5).lean()
-      console.log('Reviews API - Available stores for account:', availableStores.length)
+      
     }
 
     // Handle different view types for brand vs store filtering
@@ -129,11 +129,7 @@ export async function GET(request: NextRequest) {
 
     // Store filtering (legacy support)
     if (storeId && !viewType) {
-      console.log('Reviews API - Store filtering debug:', {
-        storeId,
-        accountIdToUse,
-        isGmbLocationId: storeId.includes('accounts/') || storeId.includes('locations/') || storeId.length > 24
-      })
+      
       
       // Check if storeId is a GMB location ID or MongoDB ObjectId
       if (storeId.includes('accounts/') || storeId.includes('locations/') || storeId.length > 24) {
@@ -159,7 +155,7 @@ export async function GET(request: NextRequest) {
         // If not found, try without the full path format
         if (!store && storeId.includes('/')) {
           const locationIdOnly = storeId.split('/').pop()
-          console.log('Trying location ID only lookup:', locationIdOnly)
+          
           
           // Try exact match with just the location ID
           store = await Store.findOne({ 
@@ -196,35 +192,14 @@ export async function GET(request: NextRequest) {
               { gmbLocationId: storeId.split('/').pop() },
               { 'gmbData.locationId': storeId }
             ]
-          }).select('_id name gmbLocationId gmbAccountId').lean()
-          
-          console.log('Reviews API - Store exists without account filter:', {
-            found: !!anyStore,
-            store: anyStore ? {
-              id: (anyStore as any)._id,
-              name: (anyStore as any).name,
-              gmbLocationId: (anyStore as any).gmbLocationId,
-              gmbAccountId: (anyStore as any).gmbAccountId,
-              accountMatch: (anyStore as any).gmbAccountId === accountIdToUse
-            } : null
-          })
+          }).select('_id name gmbLocationId gmbAccountId').lean()     
         }
         
-        console.log('Reviews API - Store lookup result:', {
-          storeFound: !!store,
-          storeId: store?._id,
-          storeName: store?.name,
-          storeGmbLocationId: store?.gmbLocationId,
-          lookupStrategies: {
-            original: storeId,
-            locationIdOnly: storeId.includes('/') ? storeId.split('/').pop() : null
-          }
-        })
         
         if (store) {
           query.storeId = store._id
         } else {
-          console.log('Reviews API - No store found for GMB location ID:', storeId)
+          
           // No store found for this GMB location ID
           return NextResponse.json({
             success: true,

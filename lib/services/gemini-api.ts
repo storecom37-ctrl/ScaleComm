@@ -49,7 +49,7 @@ export class GeminiSentimentAnalyzer {
     
     try {
       this.model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-      console.log('✅ Gemini API initialized for sentiment analysis')
+      
     } catch (error) {
       console.warn('⚠️ Failed to initialize Gemini API:', error)
     }
@@ -73,11 +73,11 @@ export class GeminiSentimentAnalyzer {
         if (this.circuitBreakerOpen) {
           const now = Date.now()
           if (now - this.circuitBreakerResetTime > this.CIRCUIT_BREAKER_TIMEOUT) {
-            console.log('Circuit breaker reset - attempting AI analysis again')
+            
             this.circuitBreakerOpen = false
             this.failureCount = 0
           } else {
-            console.log('Circuit breaker open - using rule-based analysis')
+            
             return this.analyzeWithRules(text)
           }
         }
@@ -87,7 +87,7 @@ export class GeminiSentimentAnalyzer {
         const timeSinceLastCall = now - this.lastCallTime
         if (timeSinceLastCall < this.RATE_LIMIT_MS) {
           const waitTime = this.RATE_LIMIT_MS - timeSinceLastCall
-          console.log(`Rate limiting: waiting ${waitTime}ms before next API call`)
+          
           await new Promise(resolve => setTimeout(resolve, waitTime))
         }
         this.lastCallTime = Date.now()
@@ -113,7 +113,7 @@ export class GeminiSentimentAnalyzer {
         if (this.failureCount >= this.MAX_FAILURES) {
           this.circuitBreakerOpen = true
           this.circuitBreakerResetTime = Date.now()
-          console.log('Circuit breaker opened due to repeated failures')
+          
         }
         
         // Return rule-based result as fallback

@@ -77,7 +77,7 @@ NEXTAUTH_URL=http://localhost:3000
 
 ⚠️ **Important**: Generate a strong JWT_SECRET using:
 ```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+node -e ".randomBytes(32).toString('hex'))"
 ```
 
 ### 3. Create Super Admin Account

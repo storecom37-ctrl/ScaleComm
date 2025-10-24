@@ -72,9 +72,7 @@ export function RatingReviewsSection({ brandId, storeId }: RatingReviewsSectionP
       if (brandId && brandId !== 'all') params.append('brandId', brandId)
       if (storeId && storeId !== 'all') params.append('storeId', storeId)
 
-      const url = `/api/analytics/rating-reviews?${params.toString()}`
-      console.log('Fetching rating data from:', url)
-
+      const url = `/api/analytics/rating-reviews?${params.toString()}`;
       // Create AbortController for timeout
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
@@ -95,7 +93,6 @@ export function RatingReviewsSection({ brandId, storeId }: RatingReviewsSectionP
       }
 
       const result = await response.json()
-      console.log('Rating data fetched successfully:', result)
       setData(result)
     } catch (err) {
       console.error('Error fetching rating data:', err)
@@ -109,7 +106,6 @@ export function RatingReviewsSection({ brandId, storeId }: RatingReviewsSectionP
           err.message.includes('NetworkError')
         ))
       )) {
-        console.log(`Retrying fetch (attempt ${retryCount + 1}/3)...`)
         setTimeout(() => fetchRatingData(retryCount + 1), 1000 * (retryCount + 1))
         return
       }

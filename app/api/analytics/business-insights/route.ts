@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const entityId = storeId || brandId
     const entityType = type as 'store' | 'brand'
 
-    console.log(`🔍 Generating business insights for ${entityType}: ${entityId} (${days} days)`)
+    
     
     const insights = await businessInsightsGenerator.generateInsights(entityId!, entityType, days)
     

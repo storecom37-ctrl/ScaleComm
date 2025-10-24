@@ -103,15 +103,7 @@ export default function StoresPage() {
   const [toastMessage, setToastMessage] = useState('')
   const [toastType, setToastType] = useState<'success' | 'error'>('success')
   
-  // Debug selectedStore changes
-  useEffect(() => {
-    console.log('Stores Page - selectedStore changed:', selectedStore)
-  }, [selectedStore])
-  
-  // Debug editModalOpen changes
-  useEffect(() => {
-    console.log('Stores Page - editModalOpen changed:', editModalOpen)
-  }, [editModalOpen])
+
   
   // Auto-hide toast after 5 seconds
   useEffect(() => {
@@ -190,17 +182,7 @@ export default function StoresPage() {
     const ourUrl = store.brandId && store.slug ? `http://localhost:3001/${store.brandId.slug}/stores/${store.slug}` : null
     const gmbUrl = store.microsite?.gmbUrl
     
-    console.log('Microsite URL Debug:', {
-      storeId: store.id || store._id,
-      storeName: store.name,
-      gmbConnected: store.gmbConnected,
-      brandId: store.brandId,
-      slug: store.slug,
-      ourUrl,
-      gmbUrl,
-      selectedUrl: micrositeUrl,
-      priority: ourUrl ? 'Our URL (localhost:3001)' : gmbUrl ? 'GMB URL' : 'None'
-    })
+  
     
     if (micrositeUrl) {
       window.open(micrositeUrl, '_blank')
@@ -308,19 +290,7 @@ export default function StoresPage() {
       status: (store.status || '').toLowerCase() === 'live' ? 'active' : 'draft'
     }
     
-    console.log('Transform output:', {
-      _id: transformedData._id,
-      name: transformedData.name,
-      gmbLocationId: transformedData.gmbLocationId,
-      originalStoreId: store._id || store.id,
-      originalGmbLocationId: store.gmbLocationId,
-      originalId: store.id,
-      micrositeData: {
-        original: store.microsite,
-        transformed: transformedData.microsite,
-        gmbData: store.gmbData?.metadata
-      }
-    })
+   
     return transformedData
   }
 
@@ -330,7 +300,7 @@ export default function StoresPage() {
       
       // If this is a GMB store (has gmbConnected flag), we need to find the database store
       if (store.gmbConnected && store.id) {
-        console.log('Looking up database store for GMB location:', store.id)
+        
         
         // Try multiple GMB location ID formats
         const gmbLocationIdFormats = [
@@ -344,20 +314,20 @@ export default function StoresPage() {
         
         let foundStore = null
         for (const gmbId of gmbLocationIdFormats) {
-          console.log('Trying GMB location ID format:', gmbId)
+          
           const response = await fetch(`/api/stores?gmbLocationId=${encodeURIComponent(gmbId)}`)
           const result = await response.json()
           
           if (result.success && result.data && result.data.length > 0) {
             foundStore = result.data[0]
-            console.log('Found database store with format:', gmbId, foundStore)
+            
             break
           }
         }
         
         // If still not found, try a broader search by name
         if (!foundStore) {
-          console.log('Trying to find store by name:', store.name)
+          
           const nameResponse = await fetch(`/api/stores?search=${encodeURIComponent(store.name)}`)
           const nameResult = await nameResponse.json()
           
@@ -372,7 +342,7 @@ export default function StoresPage() {
             )
             if (similarStore) {
               foundStore = similarStore
-              console.log('Found store by name and similar GMB ID:', foundStore)
+              
             }
           }
         }
@@ -380,10 +350,10 @@ export default function StoresPage() {
         if (foundStore) {
           // Use the database store instead of the GMB store
           storeToEdit = foundStore
-          console.log('Using database store:', storeToEdit)
+          
         } else {
           // If no database store found, create one
-          console.log('No database store found, creating new one for GMB location')
+          
           const createResponse = await fetch('/api/stores', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -408,13 +378,13 @@ export default function StoresPage() {
           const createResult = await createResponse.json()
           if (createResult.success) {
             storeToEdit = createResult.data
-            console.log('Created new database store:', storeToEdit)
+            
           } else {
             console.error('Failed to create database store:', createResult.error)
             
             // If the error is "already exists", try to find the existing store
             if (createResult.error && createResult.error.includes('already exists')) {
-              console.log('Store already exists, trying to find it again...')
+              
               
               // Try one more comprehensive search
               const finalSearchResponse = await fetch(`/api/stores?search=${encodeURIComponent(store.name)}`)
@@ -429,7 +399,7 @@ export default function StoresPage() {
                 
                 if (existingStore) {
                   storeToEdit = existingStore
-                  console.log('Found existing store after creation error:', storeToEdit)
+                  
                 } else {
                   alert('Store already exists but could not be found. Please refresh the page and try again.')
                   return
@@ -448,15 +418,8 @@ export default function StoresPage() {
       
       // Transform store data to edit format
       const transformedStore = transformGMBStoreToEditFormat(storeToEdit)
-      console.log('Editing store:', { 
-        original: store, 
-        databaseStore: storeToEdit, 
-        transformed: transformedStore,
-        finalId: transformedStore._id,
-        isGmbStore: store.gmbConnected
-      })
-      console.log('Setting selectedStore to:', transformedStore)
-      console.log('Setting editModalOpen to true')
+    
+      
       setSelectedStore(transformedStore)
       setEditModalOpen(true)
     } catch (error) {
@@ -468,7 +431,7 @@ export default function StoresPage() {
   const handleStoreView = (store: any) => {
     // Transform GMB store data to edit format
     const transformedStore = transformGMBStoreToEditFormat(store)
-    console.log('Viewing store:', { original: store, transformed: transformedStore })
+    
     setSelectedStore(transformedStore)
     setEditModalOpen(true)
   }
@@ -664,7 +627,7 @@ export default function StoresPage() {
       if (result.success) {
         // Refresh stores data
         refreshStores()
-        console.log('Bulk verification completed:', result.message)
+        
         alert(`Bulk verification completed: ${result.message}`)
       } else {
         throw new Error(result.error || 'Bulk verification failed')
@@ -1350,7 +1313,7 @@ export default function StoresPage() {
 
       {/* Edit Modal */}
       {selectedStore && (() => {
-        console.log('Rendering StoreCreateModal with:', { selectedStore, editModalOpen })
+        
         return (
           <StoreCreateModal
             key={`edit-${selectedStore._id || selectedStore.id || Date.now()}`}

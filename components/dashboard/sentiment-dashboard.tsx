@@ -115,7 +115,6 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
       // Add timeout to prevent hanging - increased to 5 minutes for large datasets
       const controller = new AbortController()
       timeoutId = setTimeout(() => {
-        console.log('Sentiment analysis timeout reached, aborting request')
         controller.abort()
       }, 300000) // 5 minute timeout
 
@@ -162,7 +161,6 @@ export function SentimentDashboard({ brandId, storeId, type }: SentimentDashboar
       
       // Retry logic for network errors and timeouts
       if (retryCount < 2 && (error.name === 'AbortError' || (error.name === 'TypeError' && error.message.includes('fetch')))) {
-        console.log(`Retrying sentiment analysis (attempt ${retryCount + 1}/2)`)
         setTimeout(() => {
           fetchAnalytics(force, retryCount + 1)
         }, 2000 * (retryCount + 1)) // Exponential backoff

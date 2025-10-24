@@ -23,11 +23,11 @@ export async function GET(request: NextRequest) {
 
     // Get account info
     const accountInfo = await gmbService.getAccountInfo()
-    console.log('🔍 GMB Stores API - Account info:', accountInfo)
+    
 
     // Get all accounts
     const accounts = await gmbService.getAccounts()
-    console.log('🔍 GMB Stores API - Available accounts:', accounts.length)
+    
 
     if (accounts.length === 0) {
       return NextResponse.json({
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     for (const account of accounts) {
       try {
         const locations = await gmbService.getLocations(account.name)
-        console.log(`🔍 GMB Stores API - Found ${locations.length} locations in account ${account.name}`)
+        
         
         // Transform locations to store format
         const accountStores = locations.map((location: any) => ({
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
       })
       
       await brand.save()
-      console.log('✅ Auto-created brand for GMB store:', brand.name)
+      
     }
 
     // Create store in database using atomic upsert to prevent duplicates

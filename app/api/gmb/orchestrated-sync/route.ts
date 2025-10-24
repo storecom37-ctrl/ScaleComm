@@ -138,7 +138,7 @@ async function orchestratedSyncGmbData(
         }
       })
 
-      console.log('✅ Orchestrated sync completed successfully!')
+      
     } else {
       safeEnqueue({
         type: 'sync_failed',

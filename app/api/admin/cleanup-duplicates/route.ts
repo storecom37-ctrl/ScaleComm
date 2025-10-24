@@ -14,10 +14,10 @@ export async function POST(request: NextRequest) {
       keywords: 0
     }
     
-    console.log('🧹 Starting cleanup of duplicate records...')
+    
     
     // 1. Clean up duplicate stores (keep the one with the correct name, or the most recent)
-    console.log('\n📦 Cleaning duplicate stores...')
+    
     const stores = await Store.find({}).sort({ createdAt: -1 })
     const storeMap = new Map<string, any[]>()
     
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     // For each group with duplicates, keep the best one and delete others
     for (const [key, storeGroup] of storeMap.entries()) {
       if (storeGroup.length > 1) {
-        console.log(`\n🔍 Found ${storeGroup.length} duplicates for ${key}`)
+        
         
         // Sort: prefer stores with correct names (not starting with "Store accounts/")
         // and more recent createdAt dates
@@ -51,10 +51,10 @@ export async function POST(request: NextRequest) {
         const keepStore = storeGroup[0]
         const deleteStores = storeGroup.slice(1)
         
-        console.log(`  ✅ Keeping: ${keepStore.name} (${keepStore._id})`)
+        
         
         for (const deleteStore of deleteStores) {
-          console.log(`  ❌ Deleting: ${deleteStore.name} (${deleteStore._id})`)
+          
           
           // Update all references before deleting
           await Review.updateMany(
@@ -84,10 +84,10 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    console.log(`\n✅ Cleaned up ${duplicates.stores} duplicate stores`)
+    
     
     // 2. Clean up duplicate reviews (same gmbReviewId)
-    console.log('\n⭐ Cleaning duplicate reviews...')
+    
     const reviewAggregation = await Review.aggregate([
       {
         $group: {
@@ -113,10 +113,10 @@ export async function POST(request: NextRequest) {
       duplicates.reviews += toDelete.length
     }
     
-    console.log(`✅ Cleaned up ${duplicates.reviews} duplicate reviews`)
+    
     
     // 3. Clean up duplicate posts (same gmbPostId)
-    console.log('\n📝 Cleaning duplicate posts...')
+    
     const postAggregation = await Post.aggregate([
       {
         $group: {
@@ -141,10 +141,10 @@ export async function POST(request: NextRequest) {
       duplicates.posts += toDelete.length
     }
     
-    console.log(`✅ Cleaned up ${duplicates.posts} duplicate posts`)
+    
     
     // 4. Clean up duplicate performance records (same storeId + period)
-    console.log('\n📊 Cleaning duplicate performance records...')
+    
     const perfAggregation = await Performance.aggregate([
       {
         $group: {
@@ -173,10 +173,10 @@ export async function POST(request: NextRequest) {
       duplicates.performance += toDelete.length
     }
     
-    console.log(`✅ Cleaned up ${duplicates.performance} duplicate performance records`)
+    
     
     // 5. Clean up duplicate keywords (same storeId + keyword + period)
-    console.log('\n🔍 Cleaning duplicate search keywords...')
+    
     const keywordAggregation = await SearchKeyword.aggregate([
       {
         $group: {
@@ -206,15 +206,15 @@ export async function POST(request: NextRequest) {
       duplicates.keywords += toDelete.length
     }
     
-    console.log(`✅ Cleaned up ${duplicates.keywords} duplicate keywords`)
     
-    console.log('\n🎉 Cleanup complete!')
-    console.log('Summary:')
-    console.log(`  - Stores: ${duplicates.stores}`)
-    console.log(`  - Reviews: ${duplicates.reviews}`)
-    console.log(`  - Posts: ${duplicates.posts}`)
-    console.log(`  - Performance: ${duplicates.performance}`)
-    console.log(`  - Keywords: ${duplicates.keywords}`)
+    
+    
+    
+    
+    
+    
+    
+    
     
     return NextResponse.json({
       success: true,

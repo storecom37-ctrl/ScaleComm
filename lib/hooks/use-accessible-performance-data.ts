@@ -134,8 +134,8 @@ export function useAccessibleStoreWisePerformanceData(filters: PerformanceFilter
 
   // Use SWR for data fetching - only fetch data if GMB is connected
   const apiUrl = `/api/performance/store-wise?${params.toString()}`
-  console.log('🔍 useAccessibleStoreWisePerformanceData - API URL:', apiUrl)
-  console.log('🔍 useAccessibleStoreWisePerformanceData - Filters:', filters)
+  
+  
   
   const { data, error, isLoading, mutate } = useSWR(
     isConnected ? apiUrl : null,

@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       try {
         await connectDB()
         dbConnected = true
-        console.log('✅ Database connected successfully')
+        
       } catch (dbError: unknown) {
         dbRetries++
         const errorMessage = dbError instanceof Error ? dbError.message : 'Unknown error'
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
       })
       
       await brand.save()
-      console.log('✅ Auto-created brand for progressive sync:', brand.name)
+      
     }
 
     // Update brand with GMB account data
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     }
 
     await Brand.findByIdAndUpdate(brand._id, gmbAccountData)
-    console.log('✅ Brand GMB integration updated:', brand.name)
+    
 
     // Process data based on what's available (progressive sync)
     let storesUpdated = 0
@@ -181,11 +181,7 @@ export async function POST(request: NextRequest) {
           }
         )
 
-        if (store?.isNew) {
-          console.log('✅ New store created:', store.name, 'with slug:', store.slug)
-        } else {
-          console.log('✅ Updated existing store:', store?.name)
-        }
+       
 
         // Update store with GMB data
         const storeUpdateData: any = {
@@ -293,7 +289,7 @@ export async function POST(request: NextRequest) {
           try {
             await Store.findByIdAndUpdate(store._id, storeUpdateData)
             storesUpdated++
-            console.log(`✅ Updated store: ${store.name}`)
+            
           } catch (storeUpdateError: any) {
             console.error(`❌ Failed to update store ${store.name}:`, storeUpdateError.message)
             // Try to save critical fields only
@@ -302,7 +298,7 @@ export async function POST(request: NextRequest) {
                 'gmbData.locationId': gmbLocationId,
                 'gmbData.lastSyncAt': new Date()
               })
-              console.log(`⚠️ Saved minimal store data for ${store.name}`)
+              
               storesUpdated++
             } catch (minimalUpdateError: any) {
               console.error(`❌ Failed to save even minimal store data for ${store.name}:`, minimalUpdateError.message)
@@ -423,13 +419,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('✅ GMB data synced to unified models:')
-    console.log(`  Brands updated: 1`)
-    console.log(`  Stores updated: ${storesUpdated}`)
-    console.log(`  Reviews: ${reviewsCount}`)
-    console.log(`  Posts: ${postsCount}`)
-    console.log(`  Insights: ${insightsCount}`)
-    console.log(`  Search keywords: ${searchKeywordsCount}`)
+    
+    
+    
+    
+    
+    
+    
 
     // Save to separate collections
     let separateReviewsCount = 0
@@ -439,7 +435,7 @@ export async function POST(request: NextRequest) {
 
     // Save reviews to separate Review collection
     if (data.reviews && Array.isArray(data.reviews)) {
-      console.log(`📝 Processing ${data.reviews.length} reviews for separate collection...`)
+      
       
       for (const reviewData of data.reviews) {
         try {
@@ -449,21 +445,7 @@ export async function POST(request: NextRequest) {
             const hasReply = !!(reviewData.reviewReply || reviewData.response)
             const replyData = reviewData.reviewReply || reviewData.response
             
-            console.log(`📋 Review ${reviewData.id}:`, {
-              hasReply,
-              hasReviewReply: !!reviewData.reviewReply,
-              hasResponse: !!reviewData.response,
-              profilePhotoUrl: reviewData.reviewer?.profilePhotoUrl,
-              starRating: reviewData.starRating,
-              convertedRating: convertStarRating(reviewData.starRating)
-            })
             
-            if (hasReply) {
-              console.log(`  💬 Reply data:`, {
-                comment: replyData?.comment?.substring(0, 50) + '...',
-                updateTime: replyData?.updateTime
-              })
-            }
             
             const savedReview = await Review.findOneAndUpdate(
               { gmbReviewId: reviewData.id },
@@ -490,7 +472,7 @@ export async function POST(request: NextRequest) {
               { upsert: true, new: true }
             )
             
-            console.log(`  ✅ Saved review with hasResponse:`, savedReview?.hasResponse, 'response:', savedReview?.response?.comment?.substring(0, 30))
+            
             separateReviewsCount++
           } else {
             console.log(`  ⚠️ Store not found for locationId: ${reviewData.locationId}`)
@@ -562,20 +544,7 @@ export async function POST(request: NextRequest) {
             }
             
             // Log processing results
-            console.log(`📊 Processed performance data for store ${store.name}:`, {
-              locationId: processedData.locationId,
-              period: processedData.period,
-              metrics: {
-                queries: processedData.queries,
-                views: processedData.views,
-                actions: processedData.actions,
-                callClicks: processedData.callClicks,
-                websiteClicks: processedData.websiteClicks,
-                conversionRate: processedData.conversionRate,
-                clickThroughRate: processedData.clickThroughRate
-              },
-              dataQuality: processedData.dataQuality
-            })
+           
             
             const performanceData = {
               storeId: store._id,
@@ -597,7 +566,7 @@ export async function POST(request: NextRequest) {
               status: 'active'
             }
             
-            console.log(`💾 Saving performance data:`, performanceData)
+            
             
             const savedPerformance = await Performance.findOneAndUpdate(
               { 
@@ -609,7 +578,7 @@ export async function POST(request: NextRequest) {
               { upsert: true, new: true }
             )
             
-            console.log(`✅ Performance data saved with ID: ${savedPerformance._id}`)
+            
             separatePerformanceCount++
           } else {
             console.warn(`⚠️ Skipping performance data - missing requirements:`, {
@@ -666,11 +635,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('✅ GMB sync completed - saved to separate collections:')
-    console.log(`  Reviews: ${separateReviewsCount}`)
-    console.log(`  Posts: ${separatePostsCount}`)
-    console.log(`  Performance: ${separatePerformanceCount}`)
-    console.log(`  Search keywords: ${separateKeywordsCount}`)
+    
+    
+    
+    
+    
 
     return NextResponse.json({
       success: true,
