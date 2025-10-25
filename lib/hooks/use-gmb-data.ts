@@ -331,6 +331,8 @@ export function useGmbData() {
   
   // Update connection status based on account existence
   useEffect(() => {
+    console.log("account",account);
+    
     setIsConnected(!!account)
   }, [account])
   
