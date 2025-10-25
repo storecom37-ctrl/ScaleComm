@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Performance } from '@/lib/database/separate-models'
 import { connectToDatabase } from '@/lib/database/connection'
 import { getGmbTokensFromRequest, getAllBrandAccountIds } from '@/lib/utils/auth-helpers'
+import mongoose from 'mongoose'
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,6 +10,7 @@ export async function GET(request: NextRequest) {
     
     const { searchParams } = new URL(request.url)
     const brandId = searchParams.get('brandId')
+    const storeId = searchParams.get('storeId')
     const accountId = searchParams.get('accountId')
     const periodType = searchParams.get('periodType')
     const days = searchParams.get('days')
@@ -31,30 +33,24 @@ export async function GET(request: NextRequest) {
     const query: Record<string, unknown> = { status }
     
     if (brandId && brandId !== 'all') query.brandId = brandId
+    
+    if (storeId && storeId !== 'all') {
+      // Handle comma-separated store IDs - convert to ObjectId
+      if (storeId.includes(',')) {
+        query.storeId = { $in: storeId.split(',').map(id => new mongoose.Types.ObjectId(id.trim())) }
+      } else {
+        query.storeId = new mongoose.Types.ObjectId(storeId)
+      }
+    }
+    
     if (accountId) {
       query.accountId = accountId
     } else if (accessibleAccountIds.length > 0) {
       // Only show performance data for stores linked to accessible GMB accounts
       query.accountId = { $in: accessibleAccountIds }
-    } else {
-      // If no GMB authentication, return empty data
-      return NextResponse.json({
-        success: true,
-        data: [],
-        storeWiseData: {},
-        aggregated: {
-          totalViews: 0,
-          totalActions: 0,
-          totalCallClicks: 0,
-          totalWebsiteClicks: 0,
-          totalDirectionRequests: 0,
-          averageConversionRate: 0,
-          averageClickThroughRate: 0,
-          totalStores: 0,
-          totalDataPoints: 0
-        }
-      })
     }
+    // Note: Removed the else block that was blocking data access without GMB authentication
+    // Users should be able to view existing data from the database regardless of GMB auth status
     
     
     
@@ -72,31 +68,14 @@ export async function GET(request: NextRequest) {
     
     if (periodType) query['period.periodType'] = periodType
     
-    // Date range filtering - try exact days match first, fallback to date range
+    // Date range filtering - use date range filtering directly
     if (days) {
-      // First try to filter by the exact days value saved in the database
-      query['period.dateRange.days'] = parseInt(days)
+      const endTime = new Date()
+      const startTime = new Date()
+      startTime.setDate(startTime.getDate() - parseInt(days))
       
-      // Check if we have any data with this exact days value
-      const exactMatchCount = await Performance.countDocuments({ 
-        status: 'active', 
-        'period.dateRange.days': parseInt(days) 
-      })
-      
-      
-      
-      // If no exact match, fallback to date range filtering
-      if (exactMatchCount === 0) {
-        
-        delete query['period.dateRange.days']
-        
-        const endTime = new Date()
-        const startTime = new Date()
-        startTime.setDate(startTime.getDate() - parseInt(days))
-        
-        query['period.startTime'] = { $lte: endTime }
-        query['period.endTime'] = { $gte: startTime }
-      }
+      query['period.startTime'] = { $lte: endTime }
+      query['period.endTime'] = { $gte: startTime }
     } else if (startDate && endDate) {
       const start = new Date(startDate)
       const end = new Date(endDate)

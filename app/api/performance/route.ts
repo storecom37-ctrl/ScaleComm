@@ -40,31 +40,9 @@ export async function GET(request: NextRequest) {
     } else if (accessibleAccountIds.length > 0) {
       // Only show performance data for stores linked to accessible GMB accounts
       query.accountId = { $in: accessibleAccountIds }
-      
-    } else {
-      // If no GMB authentication, return empty data
-      return NextResponse.json({
-        success: true,
-        data: [],
-        count: 0,
-        totalCount: 0,
-        pagination: {
-          page: 1,
-          limit: 100,
-          total: 0,
-          pages: 0
-        },
-        aggregated: {
-          totalViews: 0,
-          totalActions: 0,
-          totalCallClicks: 0,
-          totalWebsiteClicks: 0,
-          averageConversionRate: 0,
-          averageClickThroughRate: 0
-        },
-        message: 'No GMB authentication - connect your Google My Business account to view performance data'
-      })
     }
+    // Note: Removed the else block that was blocking data access without GMB authentication
+    // Users should be able to view existing data from the database regardless of GMB auth status
     
     
     

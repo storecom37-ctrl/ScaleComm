@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/database/connection'
 import { Performance } from '@/lib/database/separate-models'
 import { getGmbTokensFromRequest, getAllBrandAccountIds } from '@/lib/utils/auth-helpers'
+import mongoose from 'mongoose'
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,9 +30,17 @@ export async function GET(request: NextRequest) {
       // Filter by accessible accounts if no specific account requested
       matchQuery.accountId = { $in: accessibleAccountIds }
     }
+    // Note: If accountId=all and no accessible accounts, don't filter by accountId at all
+    // This allows showing all data when no GMB authentication is present
     
     if (locationId && locationId !== 'all') {
-      matchQuery.locationId = locationId
+      // Handle comma-separated location IDs - use storeId field in Performance collection
+      // Convert string IDs to ObjectIds for proper matching
+      if (locationId.includes(',')) {
+        matchQuery.storeId = { $in: locationId.split(',').map(id => new mongoose.Types.ObjectId(id.trim())) }
+      } else {
+        matchQuery.storeId = new mongoose.Types.ObjectId(locationId)
+      }
     }
 
     console.log('🔍 Impressions API - Querying database with match:', matchQuery)

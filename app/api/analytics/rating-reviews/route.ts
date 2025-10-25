@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/database/connection'
 import { Store, Review } from '@/lib/database/models'
 import { getGmbTokensFromRequest, getAllBrandAccountIds } from '@/lib/utils/auth-helpers'
+import mongoose from 'mongoose'
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,7 +28,12 @@ export async function GET(request: NextRequest) {
     }
     
     if (storeId && storeId !== 'all') {
-      matchQuery.storeId = storeId
+      // Handle comma-separated store IDs - convert to ObjectId
+      if (storeId.includes(',')) {
+        matchQuery.storeId = { $in: storeId.split(',').map(id => new mongoose.Types.ObjectId(id.trim())) }
+      } else {
+        matchQuery.storeId = new mongoose.Types.ObjectId(storeId)
+      }
     }
 
     // If we have accessible accounts, filter by them

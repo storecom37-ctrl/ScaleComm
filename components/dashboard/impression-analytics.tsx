@@ -35,6 +35,7 @@ export function ImpressionAnalytics({ accountId, locationId }: ImpressionAnalyti
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+
   const fetchData = async () => {
     try {
       setLoading(true)

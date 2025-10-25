@@ -136,12 +136,13 @@ export class SentimentWorkflowService {
     
 
     // Get reviews for this entity within the specified time range, sorted by recency (newest first)
+    // Limit to 1000 reviews to prevent timeout issues
     const reviews = await Review.find({
       [entityType === 'brand' ? 'brandId' : 'storeId']: new mongoose.Types.ObjectId(entityId),
       status: 'active',
       comment: { $exists: true, $nin: [null, ''] },
       gmbCreateTime: { $gte: startDate, $lte: endDate }
-    }).sort({ gmbCreateTime: -1 }) // Newest reviews first
+    }).sort({ gmbCreateTime: -1 }).limit(1000) // Newest reviews first, limit to 1000
 
     // If there are no reviews in the selected period, do not throw.
     // Return an "empty" analytics object so the UI can render a valid state.

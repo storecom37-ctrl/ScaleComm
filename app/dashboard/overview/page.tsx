@@ -9,7 +9,7 @@ import { GmbConnectButton } from "@/components/dashboard/gmb-connect-button"
 import { useGmbSync } from "@/lib/hooks/use-gmb-sync"
 import { useGmbAuth } from "@/lib/hooks/use-gmb-auth"
 import { useGmbData } from "@/lib/hooks/use-gmb-data"
-import { useStores } from "@/lib/hooks/use-stores"
+import { useStoresWithPerformance } from "@/lib/hooks/use-stores-with-performance"
 import { useGmbStore } from "@/lib/stores/gmb-store"
 import { useAccessibleStoreWisePerformanceData } from "@/lib/hooks/use-accessible-performance-data"
 import { useLocationPerformanceData } from "@/lib/hooks/use-location-performance-data"
@@ -79,11 +79,8 @@ export default function OverviewPage() {
 
   const { startDate, endDate } = getDateRange()
 
-  // Fetch stores from API (same as stores page)
-  const { stores, isLoading: storesLoading, refresh: refreshStores, totalStores } = useStores({
-    status: 'active',
-    limit: 10000 // Fetch all stores linked to the account
-  })
+  // Fetch stores with performance data
+  const { stores, isLoading: storesLoading, refresh: refreshStores, totalStores } = useStoresWithPerformance(1000)
 
   // Filter stores based on selected stores
   const filteredStores = selectedStores.includes("all") 
@@ -114,7 +111,7 @@ export default function OverviewPage() {
     days: selectedDays,
     status: 'active',
     limit: 1000,
-    storeId: selectedStores.includes("all") ? "all" : selectedStores[0] || "all"
+    storeId: selectedStores.includes("all") ? "all" : selectedStores.join(",") || "all"
   })
 
   // Get location performance data for scoring
@@ -125,6 +122,7 @@ export default function OverviewPage() {
 
   // Calculate total locations
   const totalLocations = filteredStores.length
+
 
   // Determine if we have a connection and data
   const finalIsConnected = dbConnected && totalLocations > 0
@@ -257,10 +255,6 @@ export default function OverviewPage() {
                 <span>All Time</span>
                 <Navigation className="h-4 w-4" />
               </Button>
-              <Button variant="outline" className="flex items-center space-x-2">
-                <Filter className="h-4 w-4" />
-                <span>Store Filter</span>
-              </Button>
               <GmbConnectButton />
               <Button
                 onClick={handleSync}
@@ -386,13 +380,13 @@ export default function OverviewPage() {
         {/* Impression Analytics */}
         <ImpressionAnalytics 
           accountId={dbAccount?.id || "all"} 
-          locationId="all" 
+          locationId={selectedStores.includes("all") ? "all" : selectedStores.join(",") || "all"} 
         />
 
         {/* Rating & Reviews Analytics */}
         <RatingReviewsSection 
           brandId="all"
-          storeId="all"
+          storeId={selectedStores.includes("all") ? "all" : selectedStores.join(",") || "all"}
         />
 
         {/* Engagement Metrics */}
@@ -475,13 +469,13 @@ export default function OverviewPage() {
           />
         )}
 
-        {/* Location-wise Visibility Scores */}
-        {finalIsConnected && locationScoringData  && (
+        {/* Location-wise Visibility Scores - HIDDEN */}
+        {/* {finalIsConnected && locationScoringData  && (
           <LocationScoringTable 
             locations={locationScoringData} 
             isLoading={dbLoading}
           />
-        )}
+        )} */}
 
         {/* Recent Activity */}
         <div className="grid gap-6 md:grid-cols-2">
