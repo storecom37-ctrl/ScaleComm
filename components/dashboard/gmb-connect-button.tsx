@@ -353,6 +353,7 @@ export function GmbConnectButton({ compact = false }: GmbConnectButtonProps) {
                 }
               } catch (e) {
                 console.warn('Failed to parse SSE data:', e)
+                console.warn('Raw line that failed to parse:', line)
               }
             }
           }
