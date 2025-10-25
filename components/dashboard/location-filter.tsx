@@ -1,7 +1,7 @@
 "use client"
 
 import { useGmbStore } from "@/lib/stores/gmb-store"
-import { useStores } from "@/lib/hooks/use-stores"
+import { useStoresWithPerformance } from "@/lib/hooks/use-stores-with-performance"
 import { useGmbData } from "@/lib/hooks/use-gmb-data"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -25,24 +25,22 @@ export function LocationFilter() {
   // Get GMB account data
   const { account, isConnected } = useGmbData()
   
-  // Get stores from API (same as overview and stores pages)
-  const { stores: apiStores, isLoading: storesLoading } = useStores({
-    status: 'active',
-    limit: 10000 // Fetch all stores linked to the account
-  })
+  // Get stores with performance data
+  const { stores: apiStores, isLoading: storesLoading } = useStoresWithPerformance(1000)
   
-  // Create stores array for dropdown - use stores from API
+  // Create stores array for dropdown - use stores with performance data
   const stores = apiStores.length > 0 
     ? [
         { id: "all", name: "All Stores", count: apiStores.length, selected: true, storeCode: '', city: '' },
         ...apiStores.map((store: any) => ({
           id: store._id,
-          name: store.name,
-          storeCode: store.storeCode || store._id?.toString().substring(0, 8) || '—',
-          city: store.address?.city || 'Unknown',
+          name: store.name || `Store ${store._id.substring(0, 8)}`,
+          storeCode: store._id?.toString().substring(0, 8) || '—',
+          city: 'Unknown', // Performance data doesn't include address
           count: 1,
           selected: false,
-          gmbLocationId: store.gmbLocationId
+          totalViews: store.totalViews,
+          totalActions: store.totalActions
         }))
       ]
     : [] // Don't show stores when none available

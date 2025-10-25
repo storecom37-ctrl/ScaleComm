@@ -54,9 +54,9 @@ export function useAccessiblePerformanceData(filters: PerformanceFilters = {}): 
     params.append('dateRange', filters.dateRange.toString())
   }
 
-  // Use SWR for data fetching - only fetch data if GMB is connected
+  // Use SWR for data fetching - always fetch data
   const { data, error, isLoading, mutate } = useSWR(
-    hasGmbAccess ? `/api/performance?${params.toString()}` : null,
+    `/api/performance?${params.toString()}`,
     fetcher,
     {
       revalidateOnFocus: false,
@@ -121,6 +121,7 @@ export function useAccessibleStoreWisePerformanceData(filters: PerformanceFilter
   // Build URL parameters like the keywords API
   const params = new URLSearchParams()
   if (filters.status) params.append('status', filters.status)
+  if (filters.storeId && filters.storeId !== 'all') params.append('storeId', filters.storeId)
   if (filters.brandId && filters.brandId !== 'all') params.append('brandId', filters.brandId)
   if (filters.accountId) params.append('accountId', filters.accountId)
   if (filters.days) params.append('days', filters.days.toString())
@@ -138,7 +139,7 @@ export function useAccessibleStoreWisePerformanceData(filters: PerformanceFilter
   
   
   const { data, error, isLoading, mutate } = useSWR(
-    isConnected ? apiUrl : null,
+    apiUrl, // Always fetch data, regardless of GMB connection
     fetcher,
     {
       revalidateOnFocus: false,

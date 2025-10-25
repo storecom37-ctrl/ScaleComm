@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, Bell, Settings, User, ChevronRight, Home, LogOut, HelpCircle, Zap, RefreshCw } from "lucide-react"
+import { Search, User, ChevronRight, Home, LogOut, Zap, RefreshCw } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -166,40 +166,8 @@ export function Header() {
           </div>
         </div>
 
-        {/* Right side - Actions and User */}
+        {/* Right side - User */}
         <div className="flex items-center space-x-3">
-          {/* Quick Actions */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-9 w-9 hover:bg-muted transition-colors"
-            title="Help & Support"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </Button>
-
-          {/* Notifications */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-9 w-9 relative hover:bg-muted transition-colors"
-            title="Notifications"
-          >
-            <Bell className="h-4 w-4" />
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 hover:bg-red-600 border-2 border-background">
-              3
-            </Badge>
-          </Button>
-
-          {/* Settings */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-9 w-9 hover:bg-muted transition-colors"
-            title="Settings"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
 
           {/* User Menu */}
           <DropdownMenu>
@@ -261,21 +229,7 @@ export function Header() {
                 </div>
               </DropdownMenuItem>
               
-              <DropdownMenuItem className="p-3 cursor-pointer">
-                <Settings className="mr-3 h-4 w-4" />
-                <div className="flex flex-col">
-                  <span className="text-sm">Settings</span>
-                  <span className="text-xs text-muted-foreground">Configure preferences</span>
-                </div>
-              </DropdownMenuItem>
               
-              <DropdownMenuItem className="p-3 cursor-pointer">
-                <HelpCircle className="mr-3 h-4 w-4" />
-                <div className="flex flex-col">
-                  <span className="text-sm">Help & Support</span>
-                  <span className="text-xs text-muted-foreground">Get assistance</span>
-                </div>
-              </DropdownMenuItem>
               
               <DropdownMenuSeparator className="my-2" />
               

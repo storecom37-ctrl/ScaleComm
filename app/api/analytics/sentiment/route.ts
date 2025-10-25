@@ -20,9 +20,9 @@ export async function GET(request: NextRequest) {
     const days = parseInt(searchParams.get('days') || '30') // Analysis period in days (default 30)
     const showProgress = searchParams.get('showProgress') === 'true' // Show analysis progress
     
-    // Add timeout for the entire operation (2 minutes)
+    // Add timeout for the entire operation (5 minutes)
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Analysis timeout - operation took too long')), 120000) // 2 minutes
+      setTimeout(() => reject(new Error('Analysis timeout - operation took too long')), 300000) // 5 minutes
     })
     
     const analysisPromise = (async (): Promise<NextResponse> => {
