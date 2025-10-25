@@ -98,7 +98,6 @@ export function RatingReviewsSection({ brandId, storeId }: RatingReviewsSectionP
       }
 
       const result = await response.json()
-      console.log('Rating data fetched successfully:', result)
       if (isMounted) {
         setData(result)
       }

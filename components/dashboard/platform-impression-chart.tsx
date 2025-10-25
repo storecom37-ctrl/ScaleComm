@@ -20,7 +20,7 @@ export function PlatformImpressionChart({
   isLoading = false 
 }: PlatformImpressionChartProps) {
   const { maps, search, total } = data
-  
+
   const mapsPercentage = total > 0 ? (maps / total) * 100 : 0
   const searchPercentage = total > 0 ? (search / total) * 100 : 0
 
@@ -63,7 +63,7 @@ export function PlatformImpressionChart({
           <div className="text-2xl font-bold text-gray-900">
             {total.toLocaleString()}
           </div>
-          
+
           {/* Donut Chart */}
           <div className="flex justify-center">
             <div className="relative w-24 h-24">
@@ -95,7 +95,7 @@ export function PlatformImpressionChart({
                   cy="50"
                   r="45"
                   fill="none"
-                  stroke="#9CA3AF"
+                  stroke="#4CAF50"
                   strokeWidth="8"
                   strokeDasharray={searchStrokeDasharray}
                   strokeDashoffset={-(mapsPercentage / 100) * circumference}
@@ -109,17 +109,17 @@ export function PlatformImpressionChart({
           {/* Legend */}
           <div className="space-y-2">
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-primary rounded-full"></div>
-              <span className="text-sm font-medium text-gray-700">
-                Maps Impressions: {mapsPercentage.toFixed(2)}%
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <span className="text-sm font-medium text-gray-700">
                 Search Impressions: {searchPercentage.toFixed(2)}%
               </span>
             </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 bg-primary rounded-full"></div>
+            <span className="text-sm font-medium text-gray-700">
+              Maps Impressions: {mapsPercentage.toFixed(2)}%
+            </span>
           </div>
         </div>
       </CardContent>

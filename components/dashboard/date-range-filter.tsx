@@ -3,7 +3,7 @@
 import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ChevronDown } from "lucide-react"
+import { Calendar, ChevronDown } from "lucide-react"
 
 interface DateRangeFilterProps {
   selectedDays: number
@@ -27,6 +27,7 @@ export function DateRangeFilter({
 
   const getDisplayText = () => {
     switch (selectedDays) {
+      case 1: return "Past 1 days"
       case 7: return "Past 7 days"
       case 30: return "All Time"
       case 60: return "Past 60 days"
@@ -43,6 +44,7 @@ export function DateRangeFilter({
             variant="outline"
             className="w-full justify-between border-blue-200 hover:border-blue-300"
           >
+            <Calendar className="h-4 w-4" />
             {getDisplayText()}
             <ChevronDown className="h-4 w-4" />
           </Button>
@@ -63,7 +65,18 @@ export function DateRangeFilter({
                 />
                 <span className="text-sm">All Time</span>
               </label>
-              
+
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="duration"
+                  value="7"
+                  checked={selectedDays === 1}
+                  onChange={() => handleDaysSelect(1)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm">Past 1 day</span>
+              </label>
               <label className="flex items-center space-x-3 cursor-pointer">
                 <input
                   type="radio"
