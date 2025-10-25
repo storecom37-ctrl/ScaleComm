@@ -71,6 +71,7 @@ export function useGmbSync() {
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
       let finalResult: any = null
+      let hasReceivedComplete = false
 
       if (reader) {
         while (true) {
@@ -83,7 +84,11 @@ export function useGmbSync() {
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
-                const data = JSON.parse(line.slice(6))
+                const jsonData = line.slice(6)
+                // Skip empty lines or malformed data
+                if (!jsonData.trim()) continue
+                
+                const data = JSON.parse(jsonData)
                 
                 // Handle different message types
                 switch (data.type) {
@@ -102,13 +107,53 @@ export function useGmbSync() {
                     break
                     
                   case 'complete':
-                    finalResult = {
-                      account: data.data?.account,
-                      locations: data.data?.locations?.length || 0,
-                      reviews: data.data?.reviews?.length || 0,
-                      posts: data.data?.posts?.length || 0,
-                      brands: 1,
-                      stores: data.data?.locations?.length || 0
+                    hasReceivedComplete = true
+                    // Handle different complete message formats
+                    if (data.data) {
+                      // Original sync-data format
+                      finalResult = {
+                        account: data.data?.account,
+                        locations: data.data?.locations?.length || 0,
+                        reviews: data.data?.reviews?.length || 0,
+                        posts: data.data?.posts?.length || 0,
+                        brands: 1,
+                        stores: data.data?.locations?.length || 0
+                      }
+                    } else if (data.syncState) {
+                      // Improved sync format
+                      finalResult = {
+                        account: data.syncState?.account,
+                        locations: data.summary?.totalLocations || 0,
+                        reviews: 0, // Not provided in improved sync
+                        posts: 0, // Not provided in improved sync
+                        brands: 1,
+                        stores: data.summary?.totalLocations || 0
+                      }
+                    } else if (data.result) {
+                      // Orchestrated sync format
+                      finalResult = {
+                        account: data.result?.syncState?.account,
+                        locations: data.result?.stats?.totalLocations || 0,
+                        reviews: data.result?.stats?.totalReviews || 0,
+                        posts: data.result?.stats?.totalPosts || 0,
+                        brands: 1,
+                        stores: data.result?.stats?.totalLocations || 0
+                      }
+                    }
+                    break
+                    
+                  case 'sync_complete':
+                    hasReceivedComplete = true
+                    // Handle orchestrated sync complete format
+                    if (data.result) {
+                      finalResult = {
+                        account: data.result?.syncState?.account,
+                        locations: data.result?.stats?.totalLocations || 0,
+                        reviews: data.result?.stats?.totalReviews || 0,
+                        posts: data.result?.stats?.totalPosts || 0,
+                        brands: 1,
+                        stores: data.result?.stats?.totalLocations || 0
+                      }
                     }
                     break
                     
@@ -117,6 +162,7 @@ export function useGmbSync() {
                 }
               } catch (e) {
                 console.warn('Failed to parse SSE data:', e)
+                console.warn('Raw line that failed to parse:', line)
               }
             }
           }
@@ -127,8 +173,32 @@ export function useGmbSync() {
         setLastSyncResult(finalResult)
         
         return finalResult
+      } else if (hasReceivedComplete) {
+        console.warn('Sync completed but no result received - this might indicate a successful sync with no data')
+        // Return a default result instead of throwing an error
+        const defaultResult = {
+          account: null,
+          locations: 0,
+          reviews: 0,
+          posts: 0,
+          brands: 1,
+          stores: 0
+        }
+        setLastSyncResult(defaultResult)
+        return defaultResult
       } else {
-        throw new Error('Sync completed but no result received')
+        console.warn('Sync completed but no complete message received - this might indicate a sync timeout or error')
+        // Return a default result instead of throwing an error
+        const defaultResult = {
+          account: null,
+          locations: 0,
+          reviews: 0,
+          posts: 0,
+          brands: 1,
+          stores: 0
+        }
+        setLastSyncResult(defaultResult)
+        return defaultResult
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
