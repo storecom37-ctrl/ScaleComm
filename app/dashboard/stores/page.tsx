@@ -89,10 +89,7 @@ export default function StoresPage() {
   const [cityFilter, setCityFilter] = useState("all")
   
   // Fetch stores from API - use the same API as dashboard
-  const { stores, isLoading: storesLoading, refresh: refreshStores, totalStores } = useStoresWithPerformance({
-    status: 'active',
-    limit: 10000 // Fetch all stores linked to the account
-  })
+  const { stores, isLoading: storesLoading, refresh: refreshStores, totalStores } = useStoresWithPerformance(10000)
   
   // Store management state
   const [editModalOpen, setEditModalOpen] = useState(false)

@@ -28,7 +28,19 @@ export function useStoresWithPerformance(limit: number = 1000): UseStoresWithPer
       setIsLoading(true)
       setError(null)
       
-      const response = await fetch(`/api/stores/with-performance?limit=${limit}`)
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+      
+      const response = await fetch(`/api/stores/with-performance?limit=${limit}`, {
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-cache'
+      })
+      
+      clearTimeout(timeoutId)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -44,7 +56,11 @@ export function useStoresWithPerformance(limit: number = 1000): UseStoresWithPer
       }
     } catch (err) {
       console.error('Error fetching stores with performance data:', err)
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Request timed out. Please try again.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Unknown error')
+      }
       setStores([])
       setTotalStores(0)
     } finally {
