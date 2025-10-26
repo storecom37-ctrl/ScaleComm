@@ -52,52 +52,59 @@ export async function GET(request: NextRequest) {
       matchQuery.accountId = { $exists: false }
     }
 
-    // Get unique stores that have performance data
+    // Get unique stores that have performance data - use same approach as store-wise endpoint
     const storesWithPerformance = await Performance.aggregate([
-      {
-        $match: matchQuery
-      },
+      { $match: matchQuery },
       {
         $lookup: {
           from: 'stores',
           localField: 'storeId',
           foreignField: '_id',
-          as: 'storeInfo'
+          as: 'store'
         }
       },
-      {
-        $unwind: {
-          path: '$storeInfo',
-          preserveNullAndEmptyArrays: true
-        }
-      },
+      { $unwind: '$store' },
       {
         $group: {
           _id: '$storeId',
-          storeName: { $first: '$storeInfo.name' },
+          store: { $first: '$store' },
+          accountId: { $first: '$accountId' },
           totalViews: { $sum: '$views' },
           totalActions: { $sum: '$actions' },
-          lastUpdated: { $max: '$createdAt' },
-          accountId: { $first: '$accountId' }
+          lastUpdated: { $max: '$createdAt' }
         }
       },
       {
         $project: {
           _id: 1,
-          name: '$storeName',
+          name: '$store.name',
           totalViews: 1,
           totalActions: 1,
           lastUpdated: 1,
-          accountId: 1
+          accountId: 1,
+          // Include additional store fields needed for statistics
+          status: '$store.status',
+          gmbLocationId: '$store.gmbLocationId',
+          gmbAccountId: '$store.gmbAccountId',
+          address: '$store.address',
+          phone: '$store.phone',
+          email: '$store.email',
+          primaryCategory: '$store.primaryCategory',
+          socialMedia: '$store.socialMedia',
+          slug: '$store.slug',
+          storeCode: '$store.storeCode',
+          brandId: '$store.brandId',
+          verified: '$store.verified',
+          lastSyncAt: '$store.lastSyncAt'
         }
       },
-      {
-        $sort: { totalViews: -1 }
-      },
-      {
-        $limit: limit
-      }
+      { $sort: { totalViews: -1 } },
+      { $limit: limit }
     ])
+
+    console.log('🔍 Stores with Performance API - Match query:', matchQuery)
+    console.log('🔍 Stores with Performance API - Found stores:', storesWithPerformance.length)
+    console.log('🔍 Stores with Performance API - Sample store:', storesWithPerformance[0])
 
     return NextResponse.json({
       success: true,
