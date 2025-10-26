@@ -91,6 +91,10 @@ export default function StoresPage() {
   // Fetch stores from API - use the same API as dashboard
   const { stores, isLoading: storesLoading, refresh: refreshStores, totalStores } = useStoresWithPerformance(10000)
   
+  // Debug logging
+  console.log('🔍 Stores Page - stores:', stores.length, 'totalStores:', totalStores)
+  console.log('🔍 Stores Page - sample store:', stores[0])
+  
   // Store management state
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [selectedStore, setSelectedStore] = useState<any>(null)
