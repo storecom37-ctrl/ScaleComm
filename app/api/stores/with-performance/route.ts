@@ -29,10 +29,27 @@ export async function GET(request: NextRequest) {
     // Filter by accessible accounts if available
     if (accessibleAccountIds.length > 0) {
       matchQuery.accountId = { $in: accessibleAccountIds }
+    } else if (session && session.email) {
+      // If no accessible accounts but we have a session, try to find user's brand
+      // This prevents showing other users' data
+      const { Brand } = await import('@/lib/database/models')
+      const userBrand = await Brand.findOne({
+        $or: [
+          { email: session.email },
+          { 'users.owner.email': session.email },
+          { 'users.manager.email': session.email }
+        ]
+      }).lean()
+      
+      if (userBrand && userBrand.settings?.gmbIntegration?.gmbAccountId) {
+        matchQuery.accountId = userBrand.settings.gmbIntegration.gmbAccountId
+      } else {
+        // If no brand found for user, return empty results to prevent data leakage
+        matchQuery.accountId = { $exists: false }
+      }
     } else {
-      // If no accessible accounts, filter by the account that the dashboard is using
-      // This ensures we only show stores from the current user's account
-      matchQuery.accountId = { $in: ['114513891898650683531', '105942132888442057006'] }
+      // If no session and no accessible accounts, return empty results
+      matchQuery.accountId = { $exists: false }
     }
 
     // Get unique stores that have performance data
