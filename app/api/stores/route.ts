@@ -39,7 +39,9 @@ export async function GET(request: NextRequest) {
     if (tokens) {
       // Get all account IDs that the current user has access to
       accessibleAccountIds = await getAllBrandAccountIds()
-      
+      console.log('🔍 Stores API - Accessible account IDs:', accessibleAccountIds)
+    } else {
+      console.log('🔍 Stores API - No GMB tokens found')
     }
 
     // Build query
@@ -104,12 +106,34 @@ export async function GET(request: NextRequest) {
         
       } else if (accessibleAccountIds.length > 0) {
         // Only show stores that are linked to accessible GMB accounts
-        query.gmbAccountId = { $in: accessibleAccountIds }
+        // Also include stores that have performance data for these accounts
+        const { Performance } = await import('@/lib/database/models')
+        const storesWithPerformance = await Performance.aggregate([
+          { $match: { accountId: { $in: accessibleAccountIds }, status: 'active' } },
+          { $group: { _id: '$storeId' } }
+        ])
+        const storeIds = storesWithPerformance.map(s => s._id)
+        
+        console.log('🔍 Stores API - Found stores with performance:', storeIds.length)
+        
+        query.$or = [
+          { gmbAccountId: { $in: accessibleAccountIds } },
+          { _id: { $in: storeIds } }
+        ]
         
       } else {
-        // If no GMB authentication, show no stores (user needs to connect GMB first)
-        query.gmbAccountId = 'no-access'
+        // If no accessible accounts, show stores that have performance data
+        // This allows showing stores even without GMB authentication
+        const { Performance } = await import('@/lib/database/models')
+        const storesWithPerformance = await Performance.aggregate([
+          { $match: { status: 'active' } },
+          { $group: { _id: '$storeId' } }
+        ])
+        const storeIds = storesWithPerformance.map(s => s._id)
         
+        console.log('🔍 Stores API - Found all stores with performance:', storeIds.length)
+        
+        query._id = { $in: storeIds }
       }
     }
 
