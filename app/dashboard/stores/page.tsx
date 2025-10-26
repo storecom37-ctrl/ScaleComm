@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useGmbStore } from "@/lib/stores/gmb-store"
 import { useGmbData } from "@/lib/hooks/use-gmb-data"
 import { useBrands } from "@/lib/hooks/use-gmb-data"
-import { useStores } from "@/lib/hooks/use-stores"
+import { useStoresWithPerformance } from "@/lib/hooks/use-stores-with-performance"
 import { useAuth } from "@/lib/hooks/use-auth"
 import StoreCreateModal from "@/components/dashboard/store-create-modal"
 import GmbSyncButton from "@/components/dashboard/gmb-sync-button"
@@ -88,11 +88,8 @@ export default function StoresPage() {
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [cityFilter, setCityFilter] = useState("all")
   
-  // Fetch stores from API
-  const { stores, isLoading: storesLoading, refresh: refreshStores, totalStores } = useStores({
-    status: 'active',
-    limit: 10000 // Fetch all stores linked to the account
-  })
+  // Fetch stores from API - use the same API as dashboard
+  const { stores, isLoading: storesLoading, refresh: refreshStores, totalStores } = useStoresWithPerformance(10000)
   
   // Store management state
   const [editModalOpen, setEditModalOpen] = useState(false)
